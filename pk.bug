@@ -1,0 +1,19 @@
+
+model
+{
+  
+  for (i in 1:n) {          # all time points
+    c[i]~dnorm(mu[i], 0.25)          # c:drug concentration
+    mu[i]<- D/v_F*(ka/(ka-k))*(exp(-k*ts[i])-exp(-ka*ts[i]))    # oral single dose
+ 
+  }
+    k <- theta[1]*exp(eta1)
+    v_F <- theta[2]*exp(eta2)
+    ka <- theta[3]*exp(eta3)
+  
+    eta1~dnorm(0, omega[1])
+    eta2~dnorm(0, omega[2])
+    eta3~dnorm(0, omega[3])
+    
+                                
+}
