@@ -3,7 +3,7 @@ library('ggplot2')
 
 theo <- Theoph
 
-theo$Dose <- theo$Dose
+theo$Dose <- theo$Dose * theo$Wt
 
 pk.model1 <- function(psi, t, Dose) {
   D <- Dose
@@ -14,7 +14,7 @@ pk.model1 <- function(psi, t, Dose) {
   return(f)
 }
 
-pkm1 <- nls(conc ~ pk.model1(psi, Time, Dose), start=list(psi=c(ka=1, V=10, ke=0.1)), data=subset(theo, Subject==1))
+pkm1 <- nls(conc ~ pk.model1(psi, Time, Dose), start=list(psi=c(ka=1, V=12, ke=0.1)), data=subset(theo, Subject==1))
 
 coef(pkm1)
 
@@ -30,8 +30,8 @@ la <- lapply(1:12, function(iSubj){
                                  'D' = theo.i$Dose[1], 
                                  'ts'= theo.i$Time,
                                  'n' = nrow(theo.i),
-                                 "theta"=c(0.054,37,1.78),
-                                 "omega"=c(2.51,4.54,5.53)),
+                                 "theta"=c(coef(pkm1)[1],coef(pkm1)[2],coef(pkm1)[3]),
+                                 "omega"=c(0.51,0.54,0.53)),
                      n.chains = 4,
                      n.adapt = 5000)
   d <- coda.samples(jags,
@@ -98,9 +98,9 @@ do_plot <- function(patiend_id =1, la){
 
 simulate_profile <- function(D, time=seq(0,24,0.1), eta1=0, eta2=0, eta3=0){
 
-    v_F = 37*exp(eta2)
-    ka = 1.78*exp(eta3)
-    k = 0.054*exp(eta1)
+    v_F = coef(pkm1)[2]*exp(eta2)
+    ka = coef(pkm1)[1]*exp(eta1)
+    k = coef(pkm1)[3]*exp(eta3)
     
     sim <-  (D)/v_F*(ka/(ka-k))*(exp(-1*(k)*time)-exp(-1*ka*time))
     return(sim)
