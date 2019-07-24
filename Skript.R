@@ -43,23 +43,23 @@ la <- lapply(1:12, function(iSubj){
 plot(do_plot(2, la))
 
 
-do_plot <- function(patiend_id =1, la){
-    
+mcmc_plots <- mcmc_diagnosticplots(2, la, nburn=500, omega=c(0.51,0.54,0.53))
 
-    
-    
-    
+gridExtra::grid.arrange(mcmc_plots$p_iter_ETA1, mcmc_plots$p_dens_ETA1,   
+                        mcmc_plots$p_iter_ETA2, mcmc_plots$p_dens_ETA2,
+                        mcmc_plots$p_iter_ETA3, mcmc_plots$p_dens_ETA3, nrow=3, ncol=2)
+
+
+do_plot <- function(patiend_id =1, la, nburn=500){
+
     dose_i <- subset(theo, Subject == patiend_id)$Dose[1]
 
-    
     df <- as.data.frame(la[[patiend_id]][[4]])
-    
-    
+
+    df <- df[-(1:nburn),]
     
     mcmc_se <- list()
-    
-    
-     
+
       for (i in 1:nrow(df)) {
         mcmc_se[[i]] <- simulate_profile(D=dose_i, eta1 = df$eta1[i], eta2 = df$eta2[i], eta3 = df$eta3[i]) 
       }
@@ -81,14 +81,26 @@ do_plot <- function(patiend_id =1, la){
     max_eta3 <- dens$x[which.max(dens$y)]
     
     
-    s <- apply(df_temp,2,function(x) quantile(x,probs=c(0.1/2, 1-0.1/2)))
+    s <- apply(df_temp,2,function(x) quantile(x,probs=c(0.05, 0.10, 0.15, 0.20, 0.8, 0.85, 0.9, 0.95)))
     
-    pk_data <- data.frame(time=seq(0,24,0.1),s1=s[1,],s2=s[2,], avg=simulate_profile(D=dose_i), max=simulate_profile(D=dose_i, eta1 = max_eta1, 
+
+    
+    pk_data <- data.frame(time=seq(0,24,0.1),
+                          s1=s[1,],s2=s[8,], 
+                          s3=s[2,],s4=s[7,],
+                          s5=s[3,],s6=s[6,],
+                          s7=s[4,],s8=s[5,],
+                          avg=simulate_profile(D=dose_i), max=simulate_profile(D=dose_i, eta1 = max_eta1, 
                                                                                                                   eta2 = max_eta2, 
                                                                                                                   eta3 = max_eta3))
     
     
-    p <- ggplot(pk_data) + geom_ribbon(aes(ymin=s1, ymax=s2, x=time), fill="red", alpha=0.5) + geom_line(aes(y=avg, x=time), linetype=2) +
+    p <- ggplot(pk_data) + 
+      geom_ribbon(aes(ymin=s1, ymax=s2, x=time), fill="red", alpha=0.25) + 
+      geom_ribbon(aes(ymin=s3, ymax=s4, x=time), fill="red", alpha=0.25) + 
+      geom_ribbon(aes(ymin=s5, ymax=s6, x=time), fill="red", alpha=0.25) + 
+      geom_ribbon(aes(ymin=s7, ymax=s8, x=time), fill="red", alpha=0.25) + 
+      geom_line(aes(y=avg, x=time), linetype=2) +
           geom_line(aes(y=max, x=time))+
           geom_point(data = subset(theo, Subject == patiend_id), aes(x=Time, y=conc))
     
@@ -105,3 +117,94 @@ simulate_profile <- function(D, time=seq(0,24,0.1), eta1=0, eta2=0, eta3=0){
     sim <-  (D)/v_F*(ka/(ka-k))*(exp(-1*(k)*time)-exp(-1*ka*time))
     return(sim)
 }
+
+
+## todo: detect number of etas automatically
+mcmc_diagnosticplots <- function(patient_id=1, jags_result, nburn = 500, omega) {
+  
+  df <- as.data.frame(la[[patient_id]][[4]]) ## Dataframe with etas
+  
+  
+  niter <- nrow(df)
+  
+  df$iteration <- (1:niter) 
+  
+  df <- df[-(1:nburn),]
+  
+  dk_ETA1 <- density(df$eta1, adjust=2)
+  dk_ETA1 <- data.frame(ETA1=dk_ETA1$x,freq=dk_ETA1$y)
+  xk_ETA1 <- seq(min(dk_ETA1$ETA1),max(dk_ETA1$ETA1), length.out = 512)
+  
+  dk_ETA2 <- density(df$eta2, adjust=2)
+  dk_ETA2 <- data.frame(ETA2=dk_ETA2$x,freq=dk_ETA2$y)
+  xk_ETA2 <- seq(min(dk_ETA2$ETA2),max(dk_ETA2$ETA2), length.out = 512)
+  
+  dk_ETA3 <- density(df$eta3, adjust=2)
+  dk_ETA3 <- data.frame(ETA3=dk_ETA3$x,freq=dk_ETA3$y)
+  xk_ETA3 <- seq(min(dk_ETA3$ETA3),max(dk_ETA3$ETA3), length.out = 512)
+  
+
+  ### Prior distributions
+  dp_ETA1 <- dnorm(x = xk_ETA1, mean = 0, sd = sqrt(omega[1]) )
+  dp_ETA1 <- data.frame(ETA1 = xk_ETA1, freq=dp_ETA1)
+  
+  dp_ETA2 <- dnorm(x = xk_ETA2, mean = 0, sd = sqrt(omega[2]) )
+  dp_ETA2 <- data.frame(ETA2 = xk_ETA2, freq=dp_ETA2)
+  
+  dp_ETA3 <- dnorm(x = xk_ETA3, mean = 0, sd = sqrt(omega[3]) )
+  dp_ETA3 <- data.frame(ETA3 = xk_ETA3, freq=dp_ETA3)
+
+  
+  
+  
+  
+  
+  #     p1 <- qplot((1:niter),ka,data=p,colour="blue")
+  p1 <- ggplot(data=df) + geom_line(aes(x=iteration,y=eta1))+ ylim(min(dk_ETA1$ETA1),max(dk_ETA1$ETA1)) +
+    theme_bw()
+  
+  p1dens <- ggplot(data = dk_ETA1) + geom_line(aes(x=ETA1, y=freq), colour="green") + 
+    geom_line(data=dp_ETA1, aes(x=ETA1,y=freq), colour = "red") + 
+    coord_flip() + xlim(min(dk_ETA1$ETA1),max(dk_ETA1$ETA1))+
+    annotate(geom="text", y=max(dk_ETA1$freq)*1.1, x=dk_ETA1$ETA1[which.max(dk_ETA1$freq)], label="posterior", colour="green") +
+    annotate(geom="text", y=max(dp_ETA1$freq)*1.1, x=0, label="prior", colour="red") +
+    ylim(0,max(dk_ETA1$freq*1.20))+
+    theme_bw() + theme(axis.title.y = element_blank())
+  
+  p2 <- ggplot(data=df) + geom_line(aes(x=iteration,y=eta2))+ ylim(min(dk_ETA2$ETA2),max(dk_ETA2$ETA2))+
+    theme_bw()
+  
+  p2dens <- ggplot(data = dk_ETA2) + geom_line(aes(x=ETA2, y=freq), colour="green") + 
+    geom_line(data=dp_ETA2, aes(x=ETA2,y=freq), colour = "red") + 
+    coord_flip() + 
+    annotate(geom="text", y=max(dk_ETA2$freq)*1.1, x=dk_ETA2$ETA2[which.max(dk_ETA2$freq)], label="posterior", colour="green") +
+    annotate(geom="text", y=max(dp_ETA2$freq)*1.1, x=0, label="prior", colour="red") +
+    ylim(0,max(dk_ETA2$freq*1.20))+
+    xlim(min(dk_ETA2$ETA2),max(dk_ETA2$ETA2))+
+    theme_bw() + theme(axis.title.y = element_blank())
+  
+  p3 <- ggplot(data=df) + geom_line(aes(x=iteration,y=eta3))+ ylim(min(dk_ETA3$ETA3),max(dk_ETA3$ETA3))+
+    theme_bw() 
+    
+  p3dens <- ggplot(data = dk_ETA3) + geom_line(aes(x=ETA3, y=freq), colour="green") + 
+    geom_line(data=dp_ETA3, aes(x=ETA3,y=freq), colour = "red") + 
+    coord_flip() + 
+    annotate(geom="text", y=max(dk_ETA3$freq)*1.1, x=dk_ETA3$ETA3[which.max(dk_ETA3$freq)], label="posterior", colour="green") +
+    annotate(geom="text", y=max(dp_ETA3$freq)*1.1, x=0, label="prior", colour="red") +
+    ylim(0,max(dk_ETA3$freq*1.20))+
+    xlim(min(dk_ETA3$ETA3),max(dk_ETA3$ETA3))+
+    theme_bw() + theme(axis.title.y = element_blank())
+
+  
+  
+  ret = list(p_iter_ETA1 = p1, 
+             p_dens_ETA1 = p1dens,
+             p_iter_ETA2 = p2, 
+             p_dens_ETA2 = p2dens,
+             p_iter_ETA3 = p3, 
+             p_dens_ETA3 = p3dens) 
+  
+  return(ret)
+}
+
+
