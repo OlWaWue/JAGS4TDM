@@ -12,7 +12,7 @@ model
 
     for(i in 1:length(amt)) {
     
-    ifelse((ts[t]-dosing_time[i]) < t_lag), a[t, i] <- 0, a[t, i] <- amt[i]*ka/(v_F*(ka-k))*(exp(-k*(ts[t]-dosing_time[i]-t_lag))-exp(-ka*(ts[t]-dosing_time[i]-t_lag))))
+    a[t, i] <- ifelse((ts[t]-dosing_time[i]) < t_lag, 0, amt[i]*ka/(v_F*(ka-k))*(exp(-k*(ts[t]-dosing_time[i]-t_lag))-exp(-ka*(ts[t]-dosing_time[i]-t_lag))))
       
     }
     c[t]~dnorm(mu[t], 0.25) 
