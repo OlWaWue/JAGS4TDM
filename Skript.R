@@ -25,11 +25,12 @@ la <- lapply(1:12, function(iSubj){
   
   print(theo.i)
   
-  jags <- jags.model('pk.bug',
+  jags <- jags.model('1cmt_multiple_dose.bug',
                      data = list('c' = theo.i$conc,
-                                 'D' = theo.i$Dose[1], 
+                                 'amt' = theo.i$Dose[1], 
+                                 'dosing_time' = 0,
+                                 't_lag' = 0,
                                  'ts'= theo.i$Time,
-                                 'n' = nrow(theo.i),
                                  "theta"=c(coef(pkm1)[1],coef(pkm1)[2],coef(pkm1)[3]),
                                  "omega"=c(0.51,0.54,0.53)),
                      n.chains = 4,
