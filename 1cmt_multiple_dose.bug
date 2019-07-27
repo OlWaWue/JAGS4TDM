@@ -1,0 +1,25 @@
+model
+{
+  k <- theta[3]*exp(eta3)
+  v_F <- theta[2]*exp(eta2)
+  ka <- theta[1]*exp(eta1)
+  
+  eta1~dnorm(0, omega[1])
+  eta2~dnorm(0, omega[2])
+  eta3~dnorm(0, omega[3])
+    
+  for(t in 1:length(ts)){
+
+    for(i in 1:length(amt)) {
+    
+    ifelse((ts[t]-dosing_time[i]) < t_lag), a[t, i] <- 0, a[t, i] <- amt[i]*ka/(v_F*(ka-k))*(exp(-k*(ts[t]-dosing_time[i]-t_lag))-exp(-ka*(ts[t]-dosing_time[i]-t_lag))))
+      
+    }
+    c[t]~dnorm(mu[t], 0.25) 
+    mu[t] <- sum(a[t,])
+  }
+  
+  
+    
+                                
+}
