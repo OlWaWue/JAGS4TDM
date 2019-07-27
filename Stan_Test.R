@@ -25,40 +25,7 @@ nThin <- 1
 nIter <- (nBurn + nPost) * nThin
 nBurnin <- nBurn * nThin
 
-library(readxl)
- tdm_data <- read_excel("G:/R Skripte/GIT Projekte/CaboSim/TDM_DATA_PT01.xlsx")
- dosing_data <- read_excel("G:/R Skripte/GIT Projekte/CaboSim/DOSING_DATA_PT01.xlsx")
-times <- c(tdm_data$times, dosing_data$times)
-evid <- c(rep(0, length(tdm_data$times)), rep(1, length(dosing_data$times)))
-cmt <- c(rep(2, length(tdm_data$times)), rep(1, length(dosing_data$times)))
-amt <- c(rep(0, length(tdm_data$times)), rep(80, length(dosing_data$times)))
-addl <- rep(0, length(times))
-ss <- rep(0, length(times))
-ii <- rep(0, length(times))
-rate <- rep(0, length(times))
-cObs <- tdm_data$conc/1000
-nt <- length(times)
-iObs <- seq(1,length(tdm_data$conc), 1)
-nObs <- length(tdm_data$conc)
-
-df <- data.frame(times, cmt, evid, addl, rate, ss, amt, ii)
-
-df <- df[order(df$times),]
-
-data <- list()
-
-data$cmt <- df$cmt
-data$addl <- df$addl
-data$rate <- df$rate
-data$cObs <- cObs
-data$ss <- ss
-data$evid <- df$evid
-data$amt <- df$amt
-data$time <- df$times
-data$ii <- df$ii
-data$nt <- nt
-data$iObs <- iObs
-data$nObs <- nObs
+data <- read_rdump("twoCpt.data.R")
 
 library(rstan)
 ## real[] time, real[] amt, int[] cmt, int[] evid

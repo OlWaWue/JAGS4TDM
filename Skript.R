@@ -1,68 +1,112 @@
 library('rjags')
 library('ggplot2')
 
-theo <- Theoph
+dosing_events <- data.frame(time=c(0,12),
+                            amt=c(100,100))
 
-theo$Dose <- theo$Dose * theo$Wt
+tdm_data <- data.frame(conc=c(2,3, 1.5, 0.72),
+                       time=c(4,6, 30, 50))
 
-pk.model1 <- function(psi, t, Dose) {
-  D <- Dose
-  ka <- psi[1]
-  V <- psi[2]
-  ke <- psi[3]
-  f <- D*ka/V/(ka-ke)*(exp(-ke*t)-exp(-ka*t))
-  return(f)
+thetas  <- c(0.5,
+             60,
+             0.09,
+             0.5)
+
+omegas <- c(0.51,0.54,0.53)
+
+TIME <- seq(0, 72, by=0.5)
+
+pk_1cmt_oral <- function(theta, eta, dosing_events, times){
+  
+  dosing_time <- dosing_events[,1]
+  amt <- dosing_events[,2]
+  
+    k <- theta[3]*exp(eta[3])
+    v_F <- theta[2]*exp(eta[2])
+    ka <- theta[1]*exp(eta[1])
+    t_lag <- theta[4]
+
+    IPRED <- vector()
+    
+    for(t in 1:length(times)){
+      temp_conc <- c(nrow = length(amt))
+      for(i in 1:length(amt)) {
+        
+        temp_conc[i] <- ifelse((times[t]-dosing_time[i]) < t_lag, 0, amt[i]*ka/(v_F*(ka-k))*(exp(-k*(times[t]-dosing_time[i]-t_lag))-exp(-ka*(times[t]-dosing_time[i]-t_lag))))
+        
+      }
+      IPRED[t] <- sum(temp_conc)
+    }
+    
+    return(IPRED)
 }
-
-pkm1 <- nls(conc ~ pk.model1(psi, Time, Dose), start=list(psi=c(ka=1, V=12, ke=0.1)), data=subset(theo, Subject==1))
-
-coef(pkm1)
-
-
-
-la <- lapply(1:12, function(iSubj){
-  theo.i <- subset(theo, Subject == iSubj)
   
-  print(theo.i)
-  
-  jags <- jags.model('1cmt_multiple_dose.bug',
-                     data = list('c' = theo.i$conc,
-                                 'amt' = theo.i$Dose[1], 
-                                 'dosing_time' = 0,
-                                 't_lag' = 0,
-                                 'ts'= theo.i$Time,
-                                 "theta"=c(coef(pkm1)[1],coef(pkm1)[2],coef(pkm1)[3]),
-                                 "omega"=c(0.51,0.54,0.53)),
-                     n.chains = 4,
-                     n.adapt = 5000)
-  d <- coda.samples(jags,
-                    c('eta1', 'eta2', 'eta3'),
-                    5000, thin=1)
-})
+IPRED <- pk_1cmt_oral(theta=thetas,
+                       eta=c(0,0,0),
+                       dosing_events = dosing_events,
+                       times=TIME)
 
 
-plot(do_plot(2, la))
+
+pk_data <- data.frame(TIME, IPRED)
+
+ggplot(pk_data, aes(x=TIME, y=IPRED)) + geom_line() + geom_point(data=tdm_data,aes(x=time, y=conc))
+
+jags <- jags.model('1cmt_multiple_dose.bug',
+                   data = list('c' = tdm_data$conc,
+                               'amt' = dosing_events$amt, 
+                               'dosing_time' = dosing_events$time,
+                               't_lag' = thetas[4],
+                               'ts'= tdm_data$time,
+                               "theta"=thetas,
+                               "omega"=omegas),
+                   n.chains = 4,
+                   n.adapt = 5000)
+d <- coda.samples(jags,
+                  c('eta1', 'eta2', 'eta3'),
+                  5000, thin=1)
+
+plot(do_plot(d))
 
 
-mcmc_plots <- mcmc_diagnosticplots(2, la, nburn=500, omega=c(0.51,0.54,0.53))
+mcmc_plots_1 <- mcmc_diagnosticplots(1, d, nburn=500, omega=omegas, "red")
+mcmc_plots_2 <- mcmc_diagnosticplots(2, d, nburn=500, omega=omegas, "orange")
+mcmc_plots_3 <- mcmc_diagnosticplots(3, d, nburn=500, omega=omegas, "yellow")
+mcmc_plots_4 <- mcmc_diagnosticplots(4, d, nburn=500, omega=omegas)
 
-gridExtra::grid.arrange(mcmc_plots$p_iter_ETA1, mcmc_plots$p_dens_ETA1,   
-                        mcmc_plots$p_iter_ETA2, mcmc_plots$p_dens_ETA2,
-                        mcmc_plots$p_iter_ETA3, mcmc_plots$p_dens_ETA3, nrow=3, ncol=2)
+
+gridExtra::grid.arrange(mcmc_plots_1$p_iter_ETA1, mcmc_plots_1$p_dens_ETA1,   
+                        mcmc_plots_1$p_iter_ETA2, mcmc_plots_1$p_dens_ETA2,
+                        mcmc_plots_1$p_iter_ETA3, mcmc_plots_1$p_dens_ETA3, nrow=3, ncol=2)
+
+gridExtra::grid.arrange(mcmc_plots_2$p_iter_ETA1, mcmc_plots_2$p_dens_ETA1,   
+                        mcmc_plots_2$p_iter_ETA2, mcmc_plots_2$p_dens_ETA2,
+                        mcmc_plots_2$p_iter_ETA3, mcmc_plots_2$p_dens_ETA3, nrow=3, ncol=2)
+
+gridExtra::grid.arrange(mcmc_plots_3$p_iter_ETA1, mcmc_plots_3$p_dens_ETA1,   
+                        mcmc_plots_3$p_iter_ETA2, mcmc_plots_3$p_dens_ETA2,
+                        mcmc_plots_3$p_iter_ETA3, mcmc_plots_3$p_dens_ETA3, nrow=3, ncol=2)
+
+gridExtra::grid.arrange(mcmc_plots_4$p_iter_ETA1, mcmc_plots_4$p_dens_ETA1,   
+                        mcmc_plots_4$p_iter_ETA2, mcmc_plots_4$p_dens_ETA2,
+                        mcmc_plots_4$p_iter_ETA3, mcmc_plots_4$p_dens_ETA3, nrow=3, ncol=2)
 
 
-do_plot <- function(patiend_id =1, la, nburn=500){
+do_plot <- function(jags_result, nburn=500){
 
-    dose_i <- subset(theo, Subject == patiend_id)$Dose[1]
-
-    df <- as.data.frame(la[[patiend_id]][[4]])
+    df <- as.data.frame(jags_result[[4]])
 
     df <- df[-(1:nburn),]
     
     mcmc_se <- list()
 
       for (i in 1:nrow(df)) {
-        mcmc_se[[i]] <- simulate_profile(D=dose_i, eta1 = df$eta1[i], eta2 = df$eta2[i], eta3 = df$eta3[i]) 
+        mcmc_se[[i]] <- pk_1cmt_oral(theta=thetas,
+                                     eta=c(df$eta1[i],df$eta2[i],df$eta3[i]),
+                                     dosing_events = dosing_events,
+                                     times=TIME)
+        
+          
       }
     
     df_temp <- NULL
@@ -86,15 +130,21 @@ do_plot <- function(patiend_id =1, la, nburn=500){
     
 
     
-    pk_data <- data.frame(time=seq(0,24,0.1),
+    pk_data <- data.frame(time=TIME,
                           s1=s[1,],s2=s[8,], 
                           s3=s[2,],s4=s[7,],
                           s5=s[3,],s6=s[6,],
                           s7=s[4,],s8=s[5,],
-                          avg=simulate_profile(D=dose_i), max=simulate_profile(D=dose_i, eta1 = max_eta1, 
-                                                                                                                  eta2 = max_eta2, 
-                                                                                                                  eta3 = max_eta3))
-    
+                          max=pk_1cmt_oral(theta=thetas,
+                                           eta=c(max_eta1,max_eta2,max_eta3),
+                                           dosing_events = dosing_events,
+                                           times=TIME),
+                          avg=pk_1cmt_oral(theta=thetas,
+                                           eta=c(0,0,0),
+                                           dosing_events = dosing_events,
+                                           times=TIME))
+                            
+    print(pk_data)
     
     p <- ggplot(pk_data) + 
       geom_ribbon(aes(ymin=s1, ymax=s2, x=time), fill="red", alpha=0.25) + 
@@ -103,27 +153,17 @@ do_plot <- function(patiend_id =1, la, nburn=500){
       geom_ribbon(aes(ymin=s7, ymax=s8, x=time), fill="red", alpha=0.25) + 
       geom_line(aes(y=avg, x=time), linetype=2) +
           geom_line(aes(y=max, x=time))+
-          geom_point(data = subset(theo, Subject == patiend_id), aes(x=Time, y=conc))
+          geom_point(data=tdm_data, aes(x=time, y=conc))
     
     return(p)
 }
 
 
-simulate_profile <- function(D, time=seq(0,24,0.1), eta1=0, eta2=0, eta3=0){
-
-    v_F = coef(pkm1)[2]*exp(eta2)
-    ka = coef(pkm1)[1]*exp(eta1)
-    k = coef(pkm1)[3]*exp(eta3)
-    
-    sim <-  (D)/v_F*(ka/(ka-k))*(exp(-1*(k)*time)-exp(-1*ka*time))
-    return(sim)
-}
-
 
 ## todo: detect number of etas automatically
-mcmc_diagnosticplots <- function(patient_id=1, jags_result, nburn = 500, omega) {
+mcmc_diagnosticplots <- function(chain=1, jags_result, nburn = 500, omega, colour="blue") {
   
-  df <- as.data.frame(la[[patient_id]][[4]]) ## Dataframe with etas
+  df <- as.data.frame(jags_result[[chain]]) ## Dataframe with etas
   
   
   niter <- nrow(df)
@@ -161,7 +201,7 @@ mcmc_diagnosticplots <- function(patient_id=1, jags_result, nburn = 500, omega) 
   
   
   #     p1 <- qplot((1:niter),ka,data=p,colour="blue")
-  p1 <- ggplot(data=df) + geom_line(aes(x=iteration,y=eta1))+ ylim(min(dk_ETA1$ETA1),max(dk_ETA1$ETA1)) +
+  p1 <- ggplot(data=df) + geom_line(aes(x=iteration,y=eta1), colour=colour)+ ylim(min(dk_ETA1$ETA1),max(dk_ETA1$ETA1)) +
     theme_bw()
   
   p1dens <- ggplot(data = dk_ETA1) + geom_line(aes(x=ETA1, y=freq), colour="green") + 
@@ -172,7 +212,7 @@ mcmc_diagnosticplots <- function(patient_id=1, jags_result, nburn = 500, omega) 
     ylim(0,max(dk_ETA1$freq*1.20))+
     theme_bw() + theme(axis.title.y = element_blank())
   
-  p2 <- ggplot(data=df) + geom_line(aes(x=iteration,y=eta2))+ ylim(min(dk_ETA2$ETA2),max(dk_ETA2$ETA2))+
+  p2 <- ggplot(data=df) + geom_line(aes(x=iteration,y=eta2), colour=colour)+ ylim(min(dk_ETA2$ETA2),max(dk_ETA2$ETA2))+
     theme_bw()
   
   p2dens <- ggplot(data = dk_ETA2) + geom_line(aes(x=ETA2, y=freq), colour="green") + 
@@ -184,7 +224,7 @@ mcmc_diagnosticplots <- function(patient_id=1, jags_result, nburn = 500, omega) 
     xlim(min(dk_ETA2$ETA2),max(dk_ETA2$ETA2))+
     theme_bw() + theme(axis.title.y = element_blank())
   
-  p3 <- ggplot(data=df) + geom_line(aes(x=iteration,y=eta3))+ ylim(min(dk_ETA3$ETA3),max(dk_ETA3$ETA3))+
+  p3 <- ggplot(data=df) + geom_line(aes(x=iteration,y=eta3), colour=colour)+ ylim(min(dk_ETA3$ETA3),max(dk_ETA3$ETA3))+
     theme_bw() 
     
   p3dens <- ggplot(data = dk_ETA3) + geom_line(aes(x=ETA3, y=freq), colour="green") + 
