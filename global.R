@@ -5,7 +5,8 @@ library('shiny')
 library('gridExtra')
 
 
-### Lagtime does not seem to work as intended
+
+### PK Model oral 1cmt with lag time
 pk_1cmt_oral <- function(theta, eta, dosing_events, times){
   
   dosing_time <- dosing_events[,1]

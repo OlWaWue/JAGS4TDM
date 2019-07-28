@@ -34,7 +34,7 @@ shinyServer(function(input, output) {
   output$pkPlot <- renderPlot({
     
     app_data$result = process_data_set(app_data$data_set, n.iter = input$mcmc_n.iter, n.burn = input$mcmc_n.burn,
-                                       thetas = c(input$ka, input$V, input$ke, input$ke, input$tlag),
+                                       thetas = c(input$ka, input$V, input$ke, input$tlag),
                                        omegas = c(input$omega1, input$omega2, input$omega3),
                                        TIME =seq(input$TIME[1], input$TIME[2], by=0.2))
     
@@ -51,7 +51,7 @@ shinyServer(function(input, output) {
     withProgress(message = "Performing Monte Carlo Simulation", max = input$n.mc, {
           for(i in 1:input$n.mc){
     
-              CP_mc <-  pk_1cmt_oral(theta = c(input$ka, input$V, input$ke, input$ke, input$tlag), 
+              CP_mc <-  pk_1cmt_oral(theta = c(input$ka, input$V, input$ke, input$tlag), 
                                                  eta = c(mc_eta1[i], mc_eta2[i],mc_eta3[i]), 
                                                  dosing_events = data.frame(time=as.numeric(as.character(app_data$data_set[app_data$data_set$evid==1,]$time)),
                                                                              amt=as.numeric(as.character(app_data$data_set[app_data$data_set$evid==1,]$amt))), 
