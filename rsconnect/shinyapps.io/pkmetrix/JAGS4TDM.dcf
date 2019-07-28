@@ -1,0 +1,13 @@
+name: JAGS4TDM
+title: JAGS4TDM
+username:
+account: pkmetrix
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 1054474
+bundleId: 2271147
+url: https://pkmetrix.shinyapps.io/JAGS4TDM/
+when: 1564312996.1383
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: 2cmt_model.stan|example.bug|example2.data|pk.bug|README.md|Skript.R|Stan_Test.R|Test.xlsx|this.Fit.Rsave|twoCpt.data.R
