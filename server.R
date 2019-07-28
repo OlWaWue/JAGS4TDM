@@ -36,7 +36,7 @@ shinyServer(function(input, output) {
     app_data$result = process_data_set(app_data$data_set, n.iter = input$mcmc_n.iter, n.burn = input$mcmc_n.burn,
                                        thetas = c(input$ka, input$V, input$ke, input$tlag),
                                        omegas = c(input$omega1, input$omega2, input$omega3),
-                                       TIME =seq(input$TIME[1], input$TIME[2], by=0.2))
+                                       TIME =seq(input$TIME[1], input$TIME[2], by=0.2), sigma=input$sigma)
     
     mc_eta2 <- (rnorm(n = input$n.mc, mean=0, sd=sqrt(input$omega2)))
     mc_eta3<- (rnorm(n = input$n.mc, mean=0, sd=sqrt(input$omega3)))

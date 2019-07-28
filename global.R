@@ -42,7 +42,7 @@ process_data_set <- function(pk_data = data.frame(time=c(0,4,6,12,30,50),
                                           0.09,
                                           0.5),
                              omegas = c(0.51,0.54,0.53),
-                             TIME = seq(0, 72, by=1)) {
+                             TIME = seq(0, 72, by=1), sigma=1.15) {
 
     do_plot <- function(jags_result, nburn=n.burn){
       
@@ -223,7 +223,8 @@ process_data_set <- function(pk_data = data.frame(time=c(0,4,6,12,30,50),
                                    't_lag' = thetas[4],
                                    'ts'= tdm_data$time,
                                    "theta"=thetas,
-                                   "omega"=omegas),
+                                   "omega"=sqrt(omegas),
+                                   'sigma'=sqrt(sigma) ),
                        n.chains = 4,
                        n.adapt = n.iter)
     
