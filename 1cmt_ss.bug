@@ -1,0 +1,23 @@
+model
+{
+  k <- theta[3]*exp(eta3)
+  Vd <- theta[2]*exp(eta2)
+  ka <- theta[1]*exp(eta1)
+  f_oral <- theta[4]*exp(eta4)
+  t_lag <- theta[5]
+  
+  eta1~dnorm(0, omega[1])
+  eta2~dnorm(0, omega[2])
+  eta3~dnorm(0, omega[3])
+  eta4~dnorm(0, omega[4])
+    
+  for (i in 1:length(times)) {          
+             
+    mu[i]<- ifelse(times[i] < t_lag, 
+                    f_oral*amt/Vd *(ka/(ka-k))*( (exp(-k*(times[i]+ii-t_lag) )/(1-exp(-k*ii))) - (exp(-ka*(times[i]+ii-t_lag) )/(1-exp(-ka*ii))) ), 
+                    f_oral*amt/Vd *(ka/(ka-k))*( (exp(-k*(times[i]-t_lag) )/(1-exp(-k*ii))) - (exp(-ka*(times[i]-t_lag) )/(1-exp(-ka*ii))) ) )
+
+    c[i]~dnorm(mu[i], sigma)
+  }  
+                               
+}

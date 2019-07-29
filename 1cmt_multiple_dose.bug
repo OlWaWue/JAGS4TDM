@@ -1,18 +1,21 @@
 model
 {
   k <- theta[3]*exp(eta3)
-  v_F <- theta[2]*exp(eta2)
+  Vd <- theta[2]*exp(eta2)
   ka <- theta[1]*exp(eta1)
+  f_oral <- theta[4]*exp(eta4)
+  t_lag <- theta[5]
   
   eta1~dnorm(0, omega[1])
   eta2~dnorm(0, omega[2])
   eta3~dnorm(0, omega[3])
+  eta4~dnorm(0, omega[4])
     
   for(t in 1:length(ts)){
 
     for(i in 1:length(amt)) {
     
-    a[t, i] <- ifelse((ts[t]-dosing_time[i]) < t_lag, 0, amt[i]*ka/(v_F*(ka-k))*(exp(-k*(ts[t]-dosing_time[i]-t_lag))-exp(-ka*(ts[t]-dosing_time[i]-t_lag))))
+    a[t, i] <- ifelse((ts[t]-dosing_time[i]) < t_lag, 0, f_oral*amt[i]*ka/(Vd*(ka-k))*(exp(-k*(ts[t]-dosing_time[i]-t_lag))-exp(-ka*(ts[t]-dosing_time[i]-t_lag))))
       
     }
     c[t]~dnorm(mu[t], sigma) 
