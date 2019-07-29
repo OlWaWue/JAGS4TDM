@@ -138,7 +138,7 @@ process_data_set <- function(pk_data = data.frame(time=c(0,4,6,12,30,50),
     
     
     ## todo: detect number of etas automatically
-    mcmc_diagnosticplots <- function(chain=1, jags_result, nburn = n.burn, omega, colour="blue") {
+    mcmc_diagnosticplots <- function(chain=1, jags_result, nburn = n.burn, omega, colour="red") {
       
       df <- as.data.frame(jags_result[[chain]]) ## Dataframe with etas
       
@@ -165,31 +165,31 @@ process_data_set <- function(pk_data = data.frame(time=c(0,4,6,12,30,50),
         dens_prior <- dnorm(x=x_this_eta, mean=0, sd=sqrt(omega[n.et]))
         dens_prior <- data.frame(ETA=x_this_eta, freq=dens_prior)
         
-
+        current_data <- data.frame(iteration=(nburn+1):niter,eta=df[,n.et])
         
         y_name <- paste("ETA", n.et)
         
-        p_iter <- ggplot(data=df) + geom_line(aes(x=iteration,y=df[,n.et]), colour=colour)+ 
-          ylim(c(min(x_this_eta),
-               max(x_this_eta))) +
+        plot_list[[paste("p_iter_ETA", n.et, sep="")]] <- ggplot(data=current_data) + 
+          geom_line(aes(x=iteration,y=eta), colour=colour)+ 
+          ylim(min(x_this_eta),
+               max(x_this_eta)) +
           theme_bw() + ylab(y_name) + xlab("Iteration")
         
-        p_dens <- ggplot(data = dens_post) +
+        plot_list[[paste("p_dens_ETA", n.et, sep="")]] <- ggplot(data = dens_post) +
           geom_line(aes(x=ETA, y=freq), colour="red") + 
           geom_line(data=dens_prior, aes(x=ETA,y=freq), colour = "blue") + 
+          geom_line(data=data.frame(y=seq(0,2,1),x=max_eta), aes(x=x, y=y), colour="red", linetype=2)+
           coord_flip() + 
-          xlim(c(min(x_this_eta),
-                 max(x_this_eta)))+
+          xlim(min(x_this_eta),
+               max(x_this_eta))+
           annotate(geom="text", 
-                   y=max(dens_post$freq)*1.1, 
+                   y=max(dens_post$freq)+0.2, 
                    x=max_eta, 
                    label="posterior", colour="red") +
-          annotate(geom="text", y=max(dens_prior$freq)*1.1, x=0, label="prior", colour="blue") +
-          ylim(0,1.2)+ ylab(paste("Density of", y_name)) +
+          annotate(geom="text", y=max(dens_prior$freq)+0.2, x=0, label="prior", colour="blue") +
+          ylim(0,2)+ ylab(paste("Density of", y_name)) +
           theme_bw() + theme(axis.title.y = element_blank()) 
         
-        plot_list[[paste("p_iter_ETA", n.et, sep="")]] <- p_iter
-        plot_list[[paste("p_dens_ETA", n.et, sep="")]] <- p_dens
      
       }
     
