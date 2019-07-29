@@ -142,6 +142,7 @@ process_data_set <- function(pk_data = data.frame(time=c(0,4,6,12,30,50),
       
       df <- as.data.frame(jags_result[[chain]]) ## Dataframe with etas
       
+      nb.etas <- ncol(jags_result[[chain]]) 
       
       niter <- nrow(df)
       
@@ -149,113 +150,52 @@ process_data_set <- function(pk_data = data.frame(time=c(0,4,6,12,30,50),
       
       df <- df[-(1:nburn),]
       
-      dk_ETA1 <- density(df$eta1, adjust=2)
-      dk_ETA1 <- data.frame(ETA1=dk_ETA1$x,freq=dk_ETA1$y)
-      xk_ETA1 <- seq(min(dk_ETA1$ETA1),max(dk_ETA1$ETA1), length.out = 512)
+
+      ## I will never again understand this...
       
-      dk_ETA2 <- density(df$eta2, adjust=2)
-      dk_ETA2 <- data.frame(ETA2=dk_ETA2$x,freq=dk_ETA2$y)
-      xk_ETA2 <- seq(min(dk_ETA2$ETA2),max(dk_ETA2$ETA2), length.out = 512)
+      plot_list <- list()
       
-      dk_ETA3 <- density(df$eta3, adjust=2)
-      dk_ETA3 <- data.frame(ETA3=dk_ETA3$x,freq=dk_ETA3$y)
-      xk_ETA3 <- seq(min(dk_ETA3$ETA3),max(dk_ETA3$ETA3), length.out = 512)
+      for(n.et in 1:nb.etas) {
+        
+        dens_post <- density(df[,n.et], adjust=2)
+        max_eta <- dens_post$x[which.max(dens_post$y)]
+        dens_post <- data.frame(ETA=dens_post$x, freq=dens_post$y)
+        x_this_eta <- seq(min(dens_post$ETA), max(dens_post$ETA), length.out = 512)
+        
+        dens_prior <- dnorm(x=x_this_eta, mean=0, sd=sqrt(omega[n.et]))
+        dens_prior <- data.frame(ETA=x_this_eta, freq=dens_prior)
+        
+
+        
+        y_name <- paste("ETA", n.et)
+        
+        p_iter <- ggplot(data=df) + geom_line(aes(x=iteration,y=df[,n.et]), colour=colour)+ 
+          ylim(c(min(x_this_eta),
+               max(x_this_eta))) +
+          theme_bw() + ylab(y_name) + xlab("Iteration")
+        
+        p_dens <- ggplot(data = dens_post) +
+          geom_line(aes(x=ETA, y=freq), colour="red") + 
+          geom_line(data=dens_prior, aes(x=ETA,y=freq), colour = "blue") + 
+          coord_flip() + 
+          xlim(c(min(x_this_eta),
+                 max(x_this_eta)))+
+          annotate(geom="text", 
+                   y=max(dens_post$freq)*1.1, 
+                   x=max_eta, 
+                   label="posterior", colour="red") +
+          annotate(geom="text", y=max(dens_prior$freq)*1.1, x=0, label="prior", colour="blue") +
+          ylim(0,1.2)+ ylab(paste("Density of", y_name)) +
+          theme_bw() + theme(axis.title.y = element_blank()) 
+        
+        plot_list[[paste("p_iter_ETA", n.et, sep="")]] <- p_iter
+        plot_list[[paste("p_dens_ETA", n.et, sep="")]] <- p_dens
+     
+      }
+    
+
       
-      dk_ETA4 <- density(df$eta4, adjust=2)
-      dk_ETA4 <- data.frame(ETA4=dk_ETA4$x,freq=dk_ETA4$y)
-      xk_ETA4 <- seq(min(dk_ETA4$ETA4),max(dk_ETA4$ETA4), length.out = 512)
-      
-      
-      ### Prior distributions
-      dp_ETA1 <- dnorm(x = xk_ETA1, mean = 0, sd = sqrt(omega[1]) )
-      dp_ETA1 <- data.frame(ETA1 = xk_ETA1, freq=dp_ETA1)
-      
-      dp_ETA2 <- dnorm(x = xk_ETA2, mean = 0, sd = sqrt(omega[2]) )
-      dp_ETA2 <- data.frame(ETA2 = xk_ETA2, freq=dp_ETA2)
-      
-      dp_ETA3 <- dnorm(x = xk_ETA3, mean = 0, sd = sqrt(omega[3]) )
-      dp_ETA3 <- data.frame(ETA3 = xk_ETA3, freq=dp_ETA3)
-      
-      dp_ETA4 <- dnorm(x = xk_ETA4, mean = 0, sd = sqrt(omega[4]) )
-      dp_ETA4 <- data.frame(ETA4 = xk_ETA4, freq=dp_ETA4)
-      
-      
-      ## Mode from posterior distribution
-      
-      dens <- density(df$eta1, adjust=2)
-      max_eta1 <- dens$x[which.max(dens$y)]
-      
-      dens <- density(df$eta2, adjust=2)
-      max_eta2 <- dens$x[which.max(dens$y)]
-      
-      dens <- density(df$eta3, adjust=2)
-      max_eta3 <- dens$x[which.max(dens$y)]
-      
-      dens <- density(df$eta4, adjust=2)
-      max_eta4 <- dens$x[which.max(dens$y)]
-      
-      
-      
-      #     p1 <- qplot((1:niter),ka,data=p,colour="blue")
-      p1 <- ggplot(data=df) + geom_line(aes(x=iteration,y=eta1), colour=colour)+ ylim(min(dk_ETA1$ETA1),max(dk_ETA1$ETA1)) +
-        theme_bw()
-      
-      p1dens <- ggplot(data = dk_ETA1) + geom_line(aes(x=ETA1, y=freq), colour="red") + 
-        geom_line(data=dp_ETA1, aes(x=ETA1,y=freq), colour = "blue") + geom_vline(aes(xintercept=max_eta1), linetype=2, colour="red")+
-        coord_flip() + xlim(min(dk_ETA1$ETA1),max(dk_ETA1$ETA1))+
-        annotate(geom="text", y=max(dk_ETA1$freq)*1.1, x=dk_ETA1$ETA1[which.max(dk_ETA1$freq)], label="posterior", colour="red") +
-        annotate(geom="text", y=max(dp_ETA1$freq)*1.1, x=0, label="prior", colour="blue") +
-        ylim(0,1.2)+
-        theme_bw() + theme(axis.title.y = element_blank())
-      
-      p2 <- ggplot(data=df) + geom_line(aes(x=iteration,y=eta2), colour=colour)+ ylim(min(dk_ETA2$ETA2),max(dk_ETA2$ETA2))+
-        theme_bw()
-      
-      p2dens <- ggplot(data = dk_ETA2) + geom_line(aes(x=ETA2, y=freq), colour="red") + 
-        geom_line(data=dp_ETA2, aes(x=ETA2,y=freq), colour = "blue") + geom_vline(aes(xintercept=max_eta2), linetype=2, colour="red")+
-        coord_flip() + 
-        annotate(geom="text", y=max(dk_ETA2$freq)*1.1, x=dk_ETA2$ETA2[which.max(dk_ETA2$freq)], label="posterior", colour="red") +
-        annotate(geom="text", y=max(dp_ETA2$freq)*1.1, x=0, label="prior", colour="blue") +
-        ylim(0,1.2)+
-        xlim(min(dk_ETA2$ETA2),max(dk_ETA2$ETA2))+
-        theme_bw() + theme(axis.title.y = element_blank())
-      
-      p3 <- ggplot(data=df) + geom_line(aes(x=iteration,y=eta3), colour=colour)+ ylim(min(dk_ETA3$ETA3),max(dk_ETA3$ETA3))+
-        theme_bw() 
-      
-      p3dens <- ggplot(data = dk_ETA3) + geom_line(aes(x=ETA3, y=freq), colour="red") + 
-        geom_line(data=dp_ETA3, aes(x=ETA3,y=freq), colour = "blue") + geom_vline(aes(xintercept=max_eta3), linetype=2, colour="red")+
-        coord_flip() + 
-        annotate(geom="text", y=max(dk_ETA3$freq)*1.1, x=dk_ETA3$ETA3[which.max(dk_ETA3$freq)], label="posterior", colour="red") +
-        annotate(geom="text", y=max(dp_ETA3$freq)*1.1, x=0, label="prior", colour="blue") +
-        ylim(0, 1.2)+
-        xlim(min(dk_ETA3$ETA3),max(dk_ETA3$ETA3))+
-        theme_bw() + theme(axis.title.y = element_blank())
-      
-      p4 <- ggplot(data=df) + geom_line(aes(x=iteration,y=eta4), colour=colour)+ ylim(min(dk_ETA4$ETA4),max(dk_ETA4$ETA4))+
-        theme_bw() 
-      
-      p4dens <- ggplot(data = dk_ETA4) + geom_line(aes(x=ETA4, y=freq), colour="red") + 
-        geom_line(data=dp_ETA4, aes(x=ETA4,y=freq), colour = "blue") + geom_vline(aes(xintercept=max_eta4), linetype=2, colour="red")+
-        coord_flip() + 
-        annotate(geom="text", y=max(dk_ETA4$freq)*1.1, x=dk_ETA4$ETA4[which.max(dk_ETA4$freq)], label="posterior", colour="red") +
-        annotate(geom="text", y=max(dp_ETA4$freq)*1.1, x=0, label="prior", colour="blue") +
-        ylim(0, 1.2)+
-        xlim(min(dk_ETA4$ETA4),max(dk_ETA4$ETA4))+
-        theme_bw() + theme(axis.title.y = element_blank())
-      
-      
-      
-      ret = list(p_iter_ETA1 = p1, 
-                 p_dens_ETA1 = p1dens,
-                 p_iter_ETA2 = p2, 
-                 p_dens_ETA2 = p2dens,
-                 p_iter_ETA3 = p3, 
-                 p_dens_ETA3 = p3dens,
-                 p_iter_ETA4 = p4, 
-                 p_dens_ETA4 = p4dens) 
-      
-      return(ret)
+      return(plot_list)
     }
     
     

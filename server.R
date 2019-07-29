@@ -1,7 +1,7 @@
 
 
 
-shinyServer(function(input, output) {
+shinyServer(function(input, output, session) {
    
   observeEvent(input$loadPT,{
     inFile <- input$loadPT
@@ -41,15 +41,11 @@ shinyServer(function(input, output) {
     ## 2 cmt model are implemented
     if(input$choose_PK_mod==2){
       
-      showNotification("Sorry! Feature not implemented, yet. Only 1 cmt without steady state available!", 
-                       action = NULL, duration = 25, closeButton = TRUE,
-                       id = NULL, type = "error",
-                       session = getDefaultReactiveDomain())
-      
       app_data$result = process_data_set(app_data$data_set, n.iter = input$mcmc_n.iter, n.burn = input$mcmc_n.burn,
-                                         thetas = c(input$ka, input$V, input$ke, input$F_oral, input$tlag),
-                                         omegas = c(input$omega1, input$omega2, input$omega3, input$omega4),
-                                         TIME =seq(input$TIME[1], input$TIME[2], by=0.2), sigma=input$sigma) 
+                                         thetas = c(input$ka, input$V, input$ke, input$F_oral, input$tlag, input$k12, input$k21),
+                                         omegas = c(input$omega1, input$omega2, input$omega3, input$omega4, input$omega5),
+                                         TIME =seq(input$TIME[1], input$TIME[2], by=0.2), sigma=input$sigma, 
+                                         steady_state = input$choose_SS, n.comp=input$choose_PK_mod) 
                              
     } else {
         app_data$result = process_data_set(app_data$data_set, n.iter = input$mcmc_n.iter, n.burn = input$mcmc_n.burn,
@@ -218,6 +214,17 @@ shinyServer(function(input, output) {
                app_data$pk_plots <- updatePKPlot()
                )
   
+  
+  observeEvent(input$choose_PK_mod,{
+    if(input$choose_PK_mod==2){
+          showNotification("Sorry! Feature not implemented, yet. Only 1 cmt available!", 
+                           action = NULL, duration = 25, closeButton = TRUE,
+                           id = NULL, type = "error",
+                           session = getDefaultReactiveDomain())
+          
+          updateSelectInput(session, "choose_PK_mod", selected=1) ### remove when 2cmt is implemented)
+    }
+  })
 })
 
 

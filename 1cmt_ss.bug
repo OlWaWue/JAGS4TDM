@@ -6,10 +6,10 @@ model
   f_oral <- theta[4]*exp(eta4)
   t_lag <- theta[5]
   
-  eta1~dnorm(0, 1/omega[1])
-  eta2~dnorm(0, 1/omega[2])
-  eta3~dnorm(0, 1/omega[3])
-  eta4~dnorm(0, 1/omega[4])
+  eta1~dnorm(0, 1/pow(omega[1],2)) # dnorm in JAGS and BUGS uses precision not SD
+  eta2~dnorm(0, 1/pow(omega[2],2))
+  eta3~dnorm(0, 1/pow(omega[3],2))
+  eta4~dnorm(0, 1/pow(omega[4],2))
     
   for (i in 1:length(times)) {          
              
@@ -17,7 +17,7 @@ model
                     f_oral*amt/Vd *(ka/(ka-k))*( (exp(-k*(times[i]+ii-t_lag) )/(1-exp(-k*ii))) - (exp(-ka*(times[i]+ii-t_lag) )/(1-exp(-ka*ii))) ), 
                     f_oral*amt/Vd *(ka/(ka-k))*( (exp(-k*(times[i]-t_lag) )/(1-exp(-k*ii))) - (exp(-ka*(times[i]-t_lag) )/(1-exp(-ka*ii))) ) )
 
-    c[i]~dnorm(mu[i], 1/sigma)
+    c[i]~dnorm(mu[i], 1/pow(sigma,2))
   }  
                                
 }
