@@ -173,18 +173,26 @@ process_data_set <- function(pk_data = data.frame(time=c(0,4,6,12,30,50),
         
         y_name <- paste("ETA", n.et)
         
+<<<<<<< HEAD
         ## trace plot for this eta in this chain
+=======
+>>>>>>> 4a103f6a18ea4ada5ee995201ddb08f8f7e4200b
         plot_list[[paste("p_iter_ETA", n.et, sep="")]] <- ggplot(data=current_data) + 
           geom_line(aes(x=iteration,y=eta), colour=colour)+ 
           ylim(min(x_this_eta),
                max(x_this_eta)) +
           theme_bw() + ylab(y_name) + xlab("Iteration")
         
+<<<<<<< HEAD
         ## 90° flipped density plot for this eta in this chain
         plot_list[[paste("p_dens_ETA", n.et, sep="")]] <- ggplot(data = dens_post) +
           geom_vline(aes(xintercept=max_eta), colour="red", linetype=2) +
+=======
+        plot_list[[paste("p_dens_ETA", n.et, sep="")]] <- ggplot(data = dens_post) +
+>>>>>>> 4a103f6a18ea4ada5ee995201ddb08f8f7e4200b
           geom_line(aes(x=ETA, y=freq), colour="red") + 
           geom_line(data=dens_prior, aes(x=ETA,y=freq), colour = "blue") + 
+          geom_line(data=data.frame(y=seq(0,2,1),x=max_eta), aes(x=x, y=y), colour="red", linetype=2)+
           coord_flip() + 
           xlim(min(x_this_eta),
                max(x_this_eta))+
