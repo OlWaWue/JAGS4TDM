@@ -159,8 +159,10 @@ shinyServer(function(input, output, session) {
     
   })
   
-  output$chain1 <- renderPlot({
-    chain = 1
+  output$traceplot <- renderPlot({
+    chain = as.numeric(input$select_chain)
+    
+    ## Has to be generalized 
     gridExtra::grid.arrange(app_data$result[[chain]]$p_iter_ETA1, app_data$result[[chain]]$p_dens_ETA1,   
                             app_data$result[[chain]]$p_iter_ETA2, app_data$result[[chain]]$p_dens_ETA2,
                             app_data$result[[chain]]$p_iter_ETA3, app_data$result[[chain]]$p_dens_ETA3,
@@ -168,32 +170,6 @@ shinyServer(function(input, output, session) {
     
   })
   
-  output$chain2 <- renderPlot({
-    chain = 2
-    gridExtra::grid.arrange(app_data$result[[chain]]$p_iter_ETA1, app_data$result[[chain]]$p_dens_ETA1,   
-                            app_data$result[[chain]]$p_iter_ETA2, app_data$result[[chain]]$p_dens_ETA2,
-                            app_data$result[[chain]]$p_iter_ETA3, app_data$result[[chain]]$p_dens_ETA3,
-                            app_data$result[[chain]]$p_iter_ETA4, app_data$result[[chain]]$p_dens_ETA4, nrow=4, ncol=2)
-    
-  })
-  
-  output$chain3 <- renderPlot({
-    chain = 3
-    gridExtra::grid.arrange(app_data$result[[chain]]$p_iter_ETA1, app_data$result[[chain]]$p_dens_ETA1,   
-                            app_data$result[[chain]]$p_iter_ETA2, app_data$result[[chain]]$p_dens_ETA2,
-                            app_data$result[[chain]]$p_iter_ETA3, app_data$result[[chain]]$p_dens_ETA3,
-                            app_data$result[[chain]]$p_iter_ETA4, app_data$result[[chain]]$p_dens_ETA4, nrow=4, ncol=2)
-    
-  })
-  
-  output$chain4 <- renderPlot({
-    chain = 4
-    gridExtra::grid.arrange(app_data$result[[chain]]$p_iter_ETA1, app_data$result[[chain]]$p_dens_ETA1,   
-                            app_data$result[[chain]]$p_iter_ETA2, app_data$result[[chain]]$p_dens_ETA2,
-                            app_data$result[[chain]]$p_iter_ETA3, app_data$result[[chain]]$p_dens_ETA3,
-                            app_data$result[[chain]]$p_iter_ETA4, app_data$result[[chain]]$p_dens_ETA4, nrow=4, ncol=2)
-    
-  })
   
   output$modelfile <- renderText({
 

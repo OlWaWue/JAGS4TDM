@@ -138,7 +138,7 @@ process_data_set <- function(pk_data = data.frame(time=c(0,4,6,12,30,50),
     
     
     ## todo: detect number of etas automatically
-    mcmc_diagnosticplots <- function(chain=1, jags_result, nburn = n.burn, omega, colour="blue") {
+    mcmc_diagnosticplots <- function(chain=1, jags_result, nburn = n.burn, omega, colour="red") {
       
       df <- as.data.frame(jags_result[[chain]]) ## Dataframe with etas
       
@@ -153,43 +153,49 @@ process_data_set <- function(pk_data = data.frame(time=c(0,4,6,12,30,50),
 
       ## I will never again understand this...
       
+      
+      ## Problems that COULD happen: never refer aesthetics to columns via df[,n.et]
+      ## Do not pass data to ggplot, but to the geom layer => problems with additional
+      ## layers that are supposed to use fixed values like geom_vline
       plot_list <- list()
       
       for(n.et in 1:nb.etas) {
         
         dens_post <- density(df[,n.et], adjust=2)
         max_eta <- dens_post$x[which.max(dens_post$y)]
-        dens_post <- data.frame(ETA=dens_post$x, freq=dens_post$y)
+        dens_post <- data.frame(ETA=dens_post$x, freq=dens_post$y, max_eta=max_eta)
         x_this_eta <- seq(min(dens_post$ETA), max(dens_post$ETA), length.out = 512)
         
         dens_prior <- dnorm(x=x_this_eta, mean=0, sd=sqrt(omega[n.et]))
         dens_prior <- data.frame(ETA=x_this_eta, freq=dens_prior)
         
-
+        current_data <- data.frame(iteration=(nburn+1):niter,eta=df[,n.et])
         
         y_name <- paste("ETA", n.et)
         
-        p_iter <- ggplot(data=df) + geom_line(aes(x=iteration,y=df[,n.et]), colour=colour)+ 
-          ylim(c(min(x_this_eta),
-               max(x_this_eta))) +
+        ## trace plot for this eta in this chain
+        plot_list[[paste("p_iter_ETA", n.et, sep="")]] <- ggplot(data=current_data) + 
+          geom_line(aes(x=iteration,y=eta), colour=colour)+ 
+          ylim(min(x_this_eta),
+               max(x_this_eta)) +
           theme_bw() + ylab(y_name) + xlab("Iteration")
         
-        p_dens <- ggplot(data = dens_post) +
+        ## 90° flipped density plot for this eta in this chain
+        plot_list[[paste("p_dens_ETA", n.et, sep="")]] <- ggplot(data = dens_post) +
+          geom_vline(aes(xintercept=max_eta), colour="red", linetype=2) +
           geom_line(aes(x=ETA, y=freq), colour="red") + 
           geom_line(data=dens_prior, aes(x=ETA,y=freq), colour = "blue") + 
           coord_flip() + 
-          xlim(c(min(x_this_eta),
-                 max(x_this_eta)))+
+          xlim(min(x_this_eta),
+               max(x_this_eta))+
           annotate(geom="text", 
-                   y=max(dens_post$freq)*1.1, 
+                   y=max(dens_post$freq)+0.2, 
                    x=max_eta, 
                    label="posterior", colour="red") +
-          annotate(geom="text", y=max(dens_prior$freq)*1.1, x=0, label="prior", colour="blue") +
-          ylim(0,1.2)+ ylab(paste("Density of", y_name)) +
+          annotate(geom="text", y=max(dens_prior$freq)+0.2, x=0, label="prior", colour="blue") +
+          ylim(0,2)+ ylab(paste("Density of", y_name)) +
           theme_bw() + theme(axis.title.y = element_blank()) 
         
-        plot_list[[paste("p_iter_ETA", n.et, sep="")]] <- p_iter
-        plot_list[[paste("p_dens_ETA", n.et, sep="")]] <- p_dens
      
       }
     
