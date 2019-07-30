@@ -3,6 +3,7 @@ library('ggplot2')
 library('readxl')
 library('shiny')
 library('gridExtra')
+library('PerformanceAnalytics')
 
 
 pk_1cmt_oral_ss<- function(theta, eta, dosing_events, times){
@@ -201,8 +202,12 @@ process_data_set <- function(pk_data = data.frame(time=c(0,4,6,12,30,50),
         
      
       }
-    
-
+      
+      df <- df[,-ncol(df)]
+      
+      plot_list[["chain_data"]] <- df
+      
+      
       
       return(plot_list)
     }

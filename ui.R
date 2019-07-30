@@ -68,10 +68,14 @@ shinyUI(navbarPage("JAGS4TDM - by Oliver Scherf-Clavel (c) 2019 - JMU Wuerzburg"
       )
   ),
   tabPanel("Diagnostic plots",
-           wellPanel("Trace plot of MCMC",
-              selectInput("select_chain", "MCMC Chain:", choices = c(1,2,3,4)),
+           selectInput("select_chain", "MCMC Chain:", choices = c(1,2,3,4)),br(),
+           wellPanel("Trace plot of MCMC",br(),
+              
               plotOutput("traceplot", height = 800)
-              )### TODO: More diagnostic plots
+              ),
+           wellPanel("Correlation between random effects",br(),
+                     plotOutput("cov_plot", height = 800)
+           )### TODO: More diagnostic plots
            ),
   tabPanel("Model File",
            verbatimTextOutput("modelfile"))

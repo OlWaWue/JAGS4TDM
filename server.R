@@ -159,6 +159,14 @@ shinyServer(function(input, output, session) {
     
   })
   
+  output$cov_plot <- renderPlot({
+    chain = as.numeric(input$select_chain)
+    
+    chart.Correlation(app_data$result[[chain]]$chain_data, histogram=TRUE)
+
+    
+  })
+  
   output$traceplot <- renderPlot({
     chain = as.numeric(input$select_chain)
     
