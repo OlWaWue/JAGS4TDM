@@ -6,6 +6,55 @@ library('gridExtra')
 library('PerformanceAnalytics')
 
 
+
+pk <- pk_2cmt_oral(theta=c(1.2, 60, 0.15, 0.9, 0.5, 300, 15),
+             eta=c(0,0,0,0,0,0),
+             dosing_events = data.frame(time=c(0,12), amt=c(100,100) ),
+             times = seq(0,48,0.1))
+
+data <- data.frame(conc=pk, time=seq(0,48,0.1)) 
+
+ggplot(data) + geom_line(aes(x=time, y=conc))+ geom_vline(aes(xintercept=12)) # + scale_y_log10()
+
+pk_2cmt_oral <- function(theta, eta, dosing_events, times){
+  
+  dosing_time <- dosing_events[,1]
+  amt <- dosing_events[,2]
+  
+  
+  k <- theta[3]*exp(eta[3])
+  V1 <- theta[2]*exp(eta[2])
+  ka <- theta[1]*exp(eta[1])
+  f_oral <- theta[4]*exp(eta[4])
+  V2 <- theta[6] * exp(eta[5])
+  Q <- theta[7] * exp(eta[6])
+  t_lag <- theta[5]
+  
+  k12 = Q/V1
+  k21 = Q/V2
+  
+  
+  beta = 0.5 * (k12 + k21 + k - sqrt((k12 + k21 + k)^2 - 4 * k21 * k))
+  alpha = (k21 * k) / beta
+  A = 1/V1 * (alpha - k21)/(alpha - beta)
+  B = 1/V1 * (beta - k21)/(beta - alpha)
+  
+  IPRED <- vector()
+  
+  for(t in 1:length(times)){
+    temp_conc <- c(nrow = length(amt))
+    for(i in 1:length(amt)) {
+      
+      temp_conc[i] <- ifelse((times[t]-dosing_time[i]) <= t_lag,
+                             0 , 
+                             f_oral*amt[i]*(A*exp(-alpha*(times[t]-dosing_time[i]-t_lag)) + B * exp(-beta*(times[t]-dosing_time[i]-t_lag)) - (A+B)*exp(-ka*(times[t]-dosing_time[i]-t_lag))) ) 
+      
+    }
+    IPRED[t] <- sum(temp_conc)
+  }
+  return(IPRED)
+}
+
 pk_1cmt_oral_ss<- function(theta, eta, dosing_events, times){
   
   ii <- dosing_events[,3]
