@@ -26,7 +26,7 @@ shinyServer(function(input, output, session) {
   app_data <- reactiveValues(
     result = NULL,
     data_set = data.frame(time=c(0,4,6,12,24,30,36,48),
-                          amt=c(7,".",".",7,7,".",7,"."),
+                          amt=c(5,".",".",5,5,".",5,"."),
                           conc=c(".", 0.04, 0.036, ".",".", 0.030,".", 0.0132),
                           evid=c(1, 0, 0, 1,1, 0, 1, 0),
                           ii=c("12",".",".","12","12",".","12",".")),
