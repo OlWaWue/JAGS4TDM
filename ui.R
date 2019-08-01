@@ -6,6 +6,7 @@
 shinyUI(navbarPage("JAGS4TDM - by Oliver Scherf-Clavel (c) 2019 - JMU Wuerzburg",
   
   tabPanel("Main",
+           h5("Demo using the Axitinib Base model from Garrett et al. British J Clin Pharmacol, DOI: 10.1111/bcp.12206"),
       sidebarLayout(
         sidebarPanel(
            checkboxInput ("choose_SS", "Steady state?", value = F),
@@ -17,25 +18,27 @@ shinyUI(navbarPage("JAGS4TDM - by Oliver Scherf-Clavel (c) 2019 - JMU Wuerzburg"
                      placeholder = "No file selected"),
 
            selectInput("choose_PK_mod", "PK Model", selected=2, list("1 compartment"=1, "2 compartments"=2)),
-           numericInput("ka", "Ka [1/h]", value = 1.5),
-           numericInput("V", "Central Volume [L]", value = 60),
-           numericInput("Cl", "Clearance [L/h]", value =5),
-           numericInput("F_oral", "Systemically available fraction (F)", value = 0.9),
+           numericInput("ka", "Ka [1/h]", value = 0.530),
+           numericInput("V", "Central Volume [L]", value = 46.6),
+           numericInput("Cl", "Clearance [L/h]", value =17.1),
+           numericInput("F_oral", "Systemically available fraction (F)", value = 0.469),
            conditionalPanel(condition="input.choose_PK_mod==2",
-                            numericInput("V2", "Peripheral Volume [L]", value = 150.00),
-                            numericInput("Q", "Intercompartmental Clearance [L/h]", value = 5.00)
+                            numericInput("V2", "Peripheral Volume [L]", value = 44.7),
+                            numericInput("Q", "Intercompartmental Clearance [L/h]", value = 1.73)
            ),
-           numericInput("tlag", "Lagtime [h]", value = 0.5),
-           numericInput("omega1", "Variance of ETA1 (ka)", value = 0.51),
-           numericInput("omega2", "Variance of ETA2 (V)", value = 0.54),
-           numericInput("omega3", "Variance of ETA3 (Cl)", value = 0.53),
-           numericInput("omega4", "Variance of ETA4 (F)", value = 0.3),
+           numericInput("tlag", "Lagtime [h]", value = 0.457),
+           numericInput("omega1", "Variance of ETA1 (ka)", value = 0.476),
+           numericInput("omega2", "Variance of ETA2 (V)", value = 0.140),
+           numericInput("omega3", "Variance of ETA3 (Cl)", value = 0.270),
+           numericInput("omega4", "Variance of ETA4 (F)", value = 0.00001),
            conditionalPanel(condition="input.choose_PK_mod==2",
-                            numericInput("omega5", "Variance of ETA5 (V2)", value = 0.09),
-                            numericInput("omega6", "Variance of ETA6 (Q)", value = 0.09)
+                            numericInput("omega5", "Variance of ETA5 (V2)", value = 1.06),
+                            numericInput("omega6", "Variance of ETA6 (Q)", value = 0.38),
+                            numericInput("cov1", "Covariance Cl~V", value=0.158),
+                            numericInput("cov2", "Covraiance Q~Vp", value=0.593)
            ),
-           numericInput("sigma", "Additive Error (mg/L)²", value=0.15),
-           sliderInput("TIME", "Time to simulate", value = c(0,72), min=0,max=240),
+           numericInput("sigma", "Additive Error (mg/L)²", value=0.00005),
+           sliderInput("TIME", "Time to simulate", value = c(0,48), min=0,max=240),
            sliderInput("n.mc",
                        "Number of MC Simulations:",
                        min = 500,
@@ -52,7 +55,7 @@ shinyUI(navbarPage("JAGS4TDM - by Oliver Scherf-Clavel (c) 2019 - JMU Wuerzburg"
                        max = 500,
                        value = 200),
            wellPanel("Display Options",
-                     checkboxInput("log_y", "Logarithmic scale on y-axis?", value=T)
+                     checkboxInput("log_y", "Logarithmic scale on y-axis?", value=F)
                      ),
            actionButton("submit", label = "Apply Changes", icon = NULL, width = NULL)
         ),

@@ -25,11 +25,11 @@ shinyServer(function(input, output, session) {
   
   app_data <- reactiveValues(
     result = NULL,
-    data_set = data.frame(time=c(0,4,6,12,30,50),
-                          amt=c(100,".",".",100,".","."),
-                          conc=c(".", 2, 1.8, ".", 1.5, 0.72),
-                          evid=c(1, 0, 0, 1, 0, 0),
-                          ii=c("24",".",".","24",".",".")),
+    data_set = data.frame(time=c(0,4,6,12,24,30,36,48),
+                          amt=c(7,".",".",7,7,".",7,"."),
+                          conc=c(".", 0.04, 0.036, ".",".", 0.030,".", 0.0132),
+                          evid=c(1, 0, 0, 1,1, 0, 1, 0),
+                          ii=c("12",".",".","12","12",".","12",".")),
     
     demo_loaded = FALSE,
     pk_plots = NULL
@@ -43,7 +43,7 @@ shinyServer(function(input, output, session) {
       
       app_data$result = process_data_set(app_data$data_set, n.iter = input$mcmc_n.iter, n.burn = input$mcmc_n.burn,
                                          thetas = c(input$ka, input$V, input$Cl, input$F_oral, input$tlag, input$V2, input$Q),
-                                         omegas = c(input$omega1, input$omega2, input$omega3, input$omega4, input$omega5, input$omega6),
+                                         omegas = c(input$omega1, input$omega2, input$omega3, input$omega4, input$omega5, input$omega6, input$cov1, input$cov2),
                                          TIME =seq(input$TIME[1], input$TIME[2], by=0.2), sigma=input$sigma, 
                                          steady_state = input$choose_SS, n.comp=input$choose_PK_mod) 
                              
@@ -217,15 +217,13 @@ shinyServer(function(input, output, session) {
 
       if(input$choose_PK_mod==1 & !input$choose_SS) {  ## Prepared for the simulation with 2-cmt
           includeText("1cmt_multiple_dose.bug")
-    #    } else if (input$choose_PK_mod==2 & !input$choose_SS) {
-
+        } else if (input$choose_PK_mod==2 & !input$choose_SS) {
+          includeText("2cmt_multiple_dose.bug")
         } else if (input$choose_PK_mod==1 & input$choose_SS) {
           includeText("1cmt_ss.bug")
+        } else if (input$choose_PK_mod==2 & input$choose_SS) {
+          includeText("2cmt_ss.bug")
         }
-
-    #    } else if (input$choose_PK_mod==2 & input$choose_SS) {
-    ## Todo: implement 2-cmt model with ss
-    #    }
   })
   
   observeEvent(input$submit,
