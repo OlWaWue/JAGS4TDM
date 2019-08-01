@@ -35,7 +35,7 @@ shinyUI(navbarPage("JAGS4TDM - by Oliver Scherf-Clavel (c) 2019 - JMU Wuerzburg"
                             numericInput("omega5", "Variance of ETA5 (V2)", value = 1.06),
                             numericInput("omega6", "Variance of ETA6 (Q)", value = 0.38),
                             numericInput("cov1", "Covariance Cl~V", value=0.158),
-                            numericInput("cov2", "Covraiance Q~Vp", value=0.593)
+                            numericInput("cov2", "Covariance Q~Vp", value=0.593)
            ),
            numericInput("sigma", "Additive Error (mg/L)²", value=0.00005),
            sliderInput("TIME", "Time to simulate", value = c(0,48), min=0,max=240),
