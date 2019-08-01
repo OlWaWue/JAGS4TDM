@@ -9,13 +9,28 @@ model
   Q <- theta[7] * exp(eta6)
   t_lag <- theta[5]
   
+  cov_mat1[1,1] <- pow(omega[3],2)
+  cov_mat1[2,2] <- pow(omega[2],2)
+  cov_mat1[1,2] <- omega[7]
+  cov_mat1[2,1] <- omega[7]
+  
+  cov_mat2[1,1] <- pow(omega[6],2)
+  cov_mat2[2,2] <- pow(omega[5],2)
+  cov_mat2[1,2] <- omega[8]
+  cov_mat2[2,1] <- omega[8]
+  
+  means <- c(0,0)
+  
+  etas1~dmnorm(means[1:2], 1/cov_mat1[1:2,1:2])
+  etas2~dmnorm(means[1:2], 1/cov_mat2[1:2,1:2])
   
   eta1~dnorm(0, 1/pow(omega[1],2)) # dnorm in JAGS and BUGS uses precision not SD
-  eta2~dnorm(0, 1/pow(omega[2],2))
-  eta3~dnorm(0, 1/pow(omega[3],2))
+  eta2 <- etas1[2]
+  eta3 <- etas1[1]
   eta4~dnorm(0, 1/pow(omega[4],2))
-  eta5~dnorm(0, 1/pow(omega[5],2))
-  eta6~dnorm(0, 1/pow(omega[6],2))
+  
+  eta5 <- etas2[2]
+  eta6 <- etas2[1]
   
   k=Cl/V1
   k12 = Q/V1

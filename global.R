@@ -5,7 +5,8 @@ library('shiny')
 library('gridExtra')
 library('PerformanceAnalytics')
 
-
+axi_i_mod_pars <- list(thetas=c(0.530,46.6,17.1,0.469,0.457, 44.7, 1.73),
+                       omegas=c(0.476, 0.140, 0.270, 0.0000001, 1.06, 0.38, 0.158, 0.593))
 
 
 pk_2cmt_oral_ss <- function(theta, eta, dosing_events, times){
@@ -182,6 +183,16 @@ process_data_set <- function(pk_data = data.frame(time=c(0,4,6,12,30,50),
                                               dosing_events = dosing_events,
                                               times=TIME)
             } else if (steady_state & n.comp==2) {
+              mcmc_se[[i]] <- pk_2cmt_oral_ss(theta=thetas,
+                                              eta=c(df$eta1[i],df$eta2[i],df$eta3[i], df$eta4[i], df$eta5[i], df$eta6[i]),
+                                              dosing_events = data.frame(time=0, amt=dosing_events$amt[1], ii=dosing_events$ii[1]),
+                                              times=TIME)
+            } else if (!steady_state & n.comp==3) {
+              mcmc_se[[i]] <- pk_2cmt_oral(theta=thetas,
+                                           eta=c(df$eta1[i],df$eta2[i],df$eta3[i], df$eta4[i], df$eta5[i], df$eta6[i]),
+                                           dosing_events = dosing_events,
+                                           times=TIME)
+            } else if (steady_state & n.comp==3) {
               mcmc_se[[i]] <- pk_2cmt_oral_ss(theta=thetas,
                                               eta=c(df$eta1[i],df$eta2[i],df$eta3[i], df$eta4[i], df$eta5[i], df$eta6[i]),
                                               dosing_events = data.frame(time=0, amt=dosing_events$amt[1], ii=dosing_events$ii[1]),
@@ -377,6 +388,38 @@ process_data_set <- function(pk_data = data.frame(time=c(0,4,6,12,30,50),
                         n.iter, thin=1)
     } else if((n.comp==2) & (steady_state)) {
       jags <- jags.model('2cmt_ss.bug',
+                         data = list('c' = tdm_data$conc,
+                                     'amt' = dosing_events$amt[1], 
+                                     'ii' = dosing_events$ii[1],
+                                     'dosing_time' = dosing_events$time[1],
+                                     'times'= tdm_data$time,
+                                     "theta"=thetas,
+                                     "omega"=sqrt(omegas),
+                                     'sigma'=sqrt(sigma) ),
+                         n.chains = 4,
+                         n.adapt = n.iter)
+      
+      d <- coda.samples(jags,
+                        c('eta1', 'eta2', 'eta3', 'eta4', 'eta5', 'eta6'),
+                        n.iter, thin=1)
+    } else if((n.comp==3) & (!steady_state)) {
+      
+      jags <- jags.model('AXI_I_multiple_dose.bug',
+                         data = list('c' = tdm_data$conc,
+                                     'amt' = dosing_events$amt, 
+                                     'dosing_time' = dosing_events$time,
+                                     'times'= tdm_data$time,
+                                     "theta"=thetas,
+                                     "omega"=sqrt(omegas),
+                                     'sigma'=sqrt(sigma) ),
+                         n.chains = 4,
+                         n.adapt = n.iter)
+      
+      d <- coda.samples(jags,
+                        c('eta1', 'eta2', 'eta3', 'eta4', 'eta5', 'eta6'),
+                        n.iter, thin=1)
+    } else if((n.comp==3) & (steady_state)) {
+      jags <- jags.model('AXI_I_ss.bug',
                          data = list('c' = tdm_data$conc,
                                      'amt' = dosing_events$amt[1], 
                                      'ii' = dosing_events$ii[1],

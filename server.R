@@ -43,16 +43,22 @@ shinyServer(function(input, output, session) {
       
       app_data$result = process_data_set(app_data$data_set, n.iter = input$mcmc_n.iter, n.burn = input$mcmc_n.burn,
                                          thetas = c(input$ka, input$V, input$Cl, input$F_oral, input$tlag, input$V2, input$Q),
-                                         omegas = c(input$omega1, input$omega2, input$omega3, input$omega4, input$omega5, input$omega6, input$cov1, input$cov2),
+                                         omegas = c(input$omega1, input$omega2, input$omega3, input$omega4, input$omega5, input$omega6),
                                          TIME =seq(input$TIME[1], input$TIME[2], by=0.2), sigma=input$sigma, 
                                          steady_state = input$choose_SS, n.comp=input$choose_PK_mod) 
                              
-    } else {
+    } else if(input$choose_PK_mod==1) {
         app_data$result = process_data_set(app_data$data_set, n.iter = input$mcmc_n.iter, n.burn = input$mcmc_n.burn,
                                            thetas = c(input$ka, input$V, input$Cl, input$F_oral, input$tlag, input$V2, input$Q),
                                            omegas = c(input$omega1, input$omega2, input$omega3, input$omega4, input$omega5),
                                            TIME =seq(input$TIME[1], input$TIME[2], by=0.2), sigma=input$sigma, 
                                            steady_state = input$choose_SS, n.comp=input$choose_PK_mod)
+    } else if(input$choose_PK_mod==3) {
+      app_data$result = process_data_set(app_data$data_set, n.iter = input$mcmc_n.iter, n.burn = input$mcmc_n.burn,
+                                         thetas = axi_i_mod_pars$thetas,
+                                         omegas = axi_i_mod_pars$omegas,
+                                         TIME =seq(input$TIME[1], input$TIME[2], by=0.2), sigma=input$sigma, 
+                                         steady_state = input$choose_SS, n.comp=input$choose_PK_mod) 
     }
     
     
@@ -65,6 +71,13 @@ shinyServer(function(input, output, session) {
     if(input$choose_PK_mod==2){
       mc_eta5<- (rnorm(n = input$n.mc, mean=0, sd=sqrt(input$omega5)))
       mc_eta6<- (rnorm(n = input$n.mc, mean=0, sd=sqrt(input$omega6)))
+    } else if (input$choose_PK_mod==3){
+      mc_eta2 <- (rnorm(n = input$n.mc, mean=0, sd=sqrt(axi_i_mod_pars$omegas[1])))
+      mc_eta3<- (rnorm(n = input$n.mc, mean=0, sd=sqrt(axi_i_mod_pars$omegas[2])))
+      mc_eta1<- (rnorm(n = input$n.mc, mean=0, sd=sqrt(axi_i_mod_pars$omegas[3])))
+      mc_eta4<- (rnorm(n = input$n.mc, mean=0, sd=sqrt(axi_i_mod_pars$omegas[4])))
+      mc_eta5<- (rnorm(n = input$n.mc, mean=0, sd=sqrt(axi_i_mod_pars$omegas[5])))
+      mc_eta6<- (rnorm(n = input$n.mc, mean=0, sd=sqrt(axi_i_mod_pars$omegas[6])))
     }
     
     dat_mc <- NULL
@@ -101,7 +114,14 @@ shinyServer(function(input, output, session) {
                                                                amt=as.numeric(as.character(app_data$data_set[app_data$data_set$evid==1,]$amt[1])),
                                                                ii=as.numeric(as.character(app_data$data_set[app_data$data_set$evid==1,]$ii[1])), evid=1), 
                                     times=seq(input$TIME[1], input$TIME[2], by=0.2))
-        }
+        } else if (input$choose_PK_mod==3 & !input$choose_SS) {
+          CP_mc <-  pk_2cmt_oral(theta = axi_i_mod_pars$thetas, 
+                                 eta = c(mc_eta1[i], mc_eta2[i],mc_eta3[i],mc_eta4[i],mc_eta5[i],mc_eta6[i]), 
+                                 dosing_events = data.frame(time=as.numeric(as.character(app_data$data_set[app_data$data_set$evid==1,]$time)),
+                                                            amt=as.numeric(as.character(app_data$data_set[app_data$data_set$evid==1,]$amt))), 
+                                 times=seq(input$TIME[1], input$TIME[2], by=0.2))
+          
+        } 
         
         
         dat_mc <- cbind(dat_mc, CP_mc)
@@ -207,6 +227,13 @@ shinyServer(function(input, output, session) {
                                 app_data$result[[chain]]$p_iter_ETA4, app_data$result[[chain]]$p_dens_ETA4,
                                 app_data$result[[chain]]$p_iter_ETA5, app_data$result[[chain]]$p_dens_ETA5,
                                 app_data$result[[chain]]$p_iter_ETA6, app_data$result[[chain]]$p_dens_ETA6, nrow=6, ncol=2) 
+    } else if(input$choose_PK_mod==3) {
+      gridExtra::grid.arrange(app_data$result[[chain]]$p_iter_ETA1, app_data$result[[chain]]$p_dens_ETA1,    
+                              app_data$result[[chain]]$p_iter_ETA2, app_data$result[[chain]]$p_dens_ETA2, 
+                              app_data$result[[chain]]$p_iter_ETA3, app_data$result[[chain]]$p_dens_ETA3, 
+                              app_data$result[[chain]]$p_iter_ETA4, app_data$result[[chain]]$p_dens_ETA4,
+                              app_data$result[[chain]]$p_iter_ETA5, app_data$result[[chain]]$p_dens_ETA5,
+                              app_data$result[[chain]]$p_iter_ETA6, app_data$result[[chain]]$p_dens_ETA6, nrow=6, ncol=2) 
     }
     
     

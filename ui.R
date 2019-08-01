@@ -10,14 +10,14 @@ shinyUI(navbarPage("JAGS4TDM - by Oliver Scherf-Clavel (c) 2019 - JMU Wuerzburg"
       sidebarLayout(
         sidebarPanel(
            checkboxInput ("choose_SS", "Steady state?", value = F),
-
+           
            h6("Use an Excel File with similar structure (see Table)"),
            fileInput("loadPT", "Load data", multiple = FALSE, 
                      accept = c(".xlsx", ".xls"),                                     
                      width = NULL,buttonLabel = "Browse...", 
                      placeholder = "No file selected"),
 
-           selectInput("choose_PK_mod", "PK Model", selected=2, list("1 compartment"=1, "2 compartments"=2)),
+           selectInput("choose_PK_mod", "PK Model", selected=2, list("1 compartment"=1, "2 compartments"=2, "Axitinib Basemod"=3)),
            numericInput("ka", "Ka [1/h]", value = 0.530),
            numericInput("V", "Central Volume [L]", value = 46.6),
            numericInput("Cl", "Clearance [L/h]", value =17.1),
@@ -33,9 +33,7 @@ shinyUI(navbarPage("JAGS4TDM - by Oliver Scherf-Clavel (c) 2019 - JMU Wuerzburg"
            numericInput("omega4", "Variance of ETA4 (F)", value = 0.00001),
            conditionalPanel(condition="input.choose_PK_mod==2",
                             numericInput("omega5", "Variance of ETA5 (V2)", value = 1.06),
-                            numericInput("omega6", "Variance of ETA6 (Q)", value = 0.38),
-                            numericInput("cov1", "Covariance Cl~V", value=0.158),
-                            numericInput("cov2", "Covariance Q~Vp", value=0.593)
+                            numericInput("omega6", "Variance of ETA6 (Q)", value = 0.38)
            ),
            numericInput("sigma", "Additive Error (mg/L)²", value=0.00005),
            sliderInput("TIME", "Time to simulate", value = c(0,48), min=0,max=240),
