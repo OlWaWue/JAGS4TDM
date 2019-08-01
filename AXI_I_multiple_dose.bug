@@ -1,49 +1,49 @@
 model
 {
-
- Cl <- theta[3]*exp(eta3)
+  ### Basemodel does not include Covariates ###
+  
+  Cl <- theta[3]*exp(eta3)
   V1 <- theta[2]*exp(eta2)
   ka <- theta[1]*exp(eta1)
-  f_oral <- theta[4]*exp(eta4)
-  V2 <- theta[6] * exp(eta5)
-  Q <- theta[7] * exp(eta6)
+  f_oral <- theta[4]
+  V2 <- theta[6] * exp(eta4)
+  Q <- theta[7] * exp(eta5)
   t_lag <- theta[5]
   
   cov_mat1[1,1] <- pow(omega[3],2)
   cov_mat1[2,2] <- pow(omega[2],2)
-  cov_mat1[1,2] <- omega[7]
-  cov_mat1[2,1] <- omega[7]
+  cov_mat1[1,2] <- omega[6]
+  cov_mat1[2,1] <- omega[6]
   
-  cov_mat2[1,1] <- pow(omega[6],2)
-  cov_mat2[2,2] <- pow(omega[5],2)
-  cov_mat2[1,2] <- omega[8]
-  cov_mat2[2,1] <- omega[8]
+  cov_mat2[1,1] <- pow(omega[5],2)
+  cov_mat2[2,2] <- pow(omega[4],2)
+  cov_mat2[1,2] <- omega[7]
+  cov_mat2[2,1] <- omega[7]
   
   means <- c(0,0)
   
-  etas1~dmnorm(means[1:2], 1/cov_mat1[1:2,1:2])
-  etas2~dmnorm(means[1:2], 1/cov_mat2[1:2,1:2])
+  etas1~dmnorm(means[1:2], 1/cov_mat1[1:2,1:2]) # Model Covariance between Clearance and V1
+  etas2~dmnorm(means[1:2], 1/cov_mat2[1:2,1:2]) # Model Covariance between Q and V2
   
-  eta1~dnorm(0, 1/pow(omega[1],2)) # dnorm in JAGS and BUGS uses precision not SD
+  eta1~dnorm(0, 1/pow(omega[1],2)) # dnorm in JAGS and BUGS uses precision not SD unlike in R!
   eta2 <- etas1[2]
   eta3 <- etas1[1]
-  eta4~dnorm(0, 1/pow(omega[4],2))
   
-  eta5 <- etas2[2]
-  eta6 <- etas2[1]
+  eta4 <- etas2[2]
+  eta5 <- etas2[1]
   
+  ### Convert to rate constants ####
   k=Cl/V1
   k12 = Q/V1
   k21 = Q/V2
   
+  ### ---- Structural model: Analytical solution of oral 2 compartments with first order absorption and linear elimination ---- ###
   
   beta = 0.5 * (k12 + k21 + k - sqrt((k12 + k21 + k)^2 - 4 * k21 * k))
   alpha = (k21 * k) / beta
   
   A = ka/V1 * (k21-alpha)/((ka-alpha) * (beta-alpha))
   B = ka/V1 * (k21-beta)/((ka-beta) * (alpha-beta))
-  
-
   
   for(t in 1:length(times)){
 

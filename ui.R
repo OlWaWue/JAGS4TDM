@@ -6,8 +6,8 @@
 shinyUI(navbarPage("JAGS4TDM - by Oliver Scherf-Clavel (c) 2019 - JMU Wuerzburg",
   
   tabPanel("Main",
-           h5("Demo using the Axitinib Base model from Garrett et al. British J Clin Pharmacol, DOI: 10.1111/bcp.12206"),
-      sidebarLayout(
+           htmlOutput("info"),br(),hr(),
+           sidebarLayout(
         sidebarPanel(
            checkboxInput ("choose_SS", "Steady state?", value = F),
            
@@ -17,25 +17,29 @@ shinyUI(navbarPage("JAGS4TDM - by Oliver Scherf-Clavel (c) 2019 - JMU Wuerzburg"
                      width = NULL,buttonLabel = "Browse...", 
                      placeholder = "No file selected"),
 
-           selectInput("choose_PK_mod", "PK Model", selected=2, list("1 compartment"=1, "2 compartments"=2, "Axitinib Basemod"=3)),
-           numericInput("ka", "Ka [1/h]", value = 0.530),
-           numericInput("V", "Central Volume [L]", value = 46.6),
-           numericInput("Cl", "Clearance [L/h]", value =17.1),
-           numericInput("F_oral", "Systemically available fraction (F)", value = 0.469),
+           selectInput("choose_PK_mod", "PK Model", selected=3, list("Generic 1 compartment"=1, "Generic 2 compartments"=2, "Axitinib Basemod"=3)),
+           conditionalPanel(condition="input.choose_PK_mod!=3",
+               numericInput("ka", "Absorption rate constant(Ka) [1/h]", value = 0.530),
+               numericInput("V", "Central Volume (V) [L]", value = 46.6),
+               numericInput("Cl", "Clearance (Cl) [L/h]", value =17.1),
+               numericInput("F_oral", "Systemically available fraction (F)", value = 0.469)
+            ),
            conditionalPanel(condition="input.choose_PK_mod==2",
-                            numericInput("V2", "Peripheral Volume [L]", value = 44.7),
-                            numericInput("Q", "Intercompartmental Clearance [L/h]", value = 1.73)
+               numericInput("V2", "Peripheral Volume (V2) [L]", value = 44.7),
+               numericInput("Q", "Intercompartmental Clearance (Q) [L/h]", value = 1.73)
            ),
-           numericInput("tlag", "Lagtime [h]", value = 0.457),
-           numericInput("omega1", "Variance of ETA1 (ka)", value = 0.476),
-           numericInput("omega2", "Variance of ETA2 (V)", value = 0.140),
-           numericInput("omega3", "Variance of ETA3 (Cl)", value = 0.270),
-           numericInput("omega4", "Variance of ETA4 (F)", value = 0.00001),
+           conditionalPanel(condition="input.choose_PK_mod!=3",
+                 numericInput("tlag", "Lagtime [h]", value = 0.457),
+                 numericInput("omega1", "Variance of ETA1 (ka)", value = 0.476),
+                 numericInput("omega2", "Variance of ETA2 (V)", value = 0.140),
+                 numericInput("omega3", "Variance of ETA3 (Cl)", value = 0.270),
+                 numericInput("omega4", "Variance of ETA4 (F)", value = 0.00001)
+            ),
            conditionalPanel(condition="input.choose_PK_mod==2",
                             numericInput("omega5", "Variance of ETA5 (V2)", value = 1.06),
                             numericInput("omega6", "Variance of ETA6 (Q)", value = 0.38)
            ),
-           numericInput("sigma", "Additive Error (mg/L)²", value=0.00005),
+           numericInput("sigma", "Assay variance (mg/L)²", value=0.00005),
            sliderInput("TIME", "Time to simulate", value = c(0,48), min=0,max=240),
            sliderInput("n.mc",
                        "Number of MC Simulations:",
@@ -75,10 +79,10 @@ shinyUI(navbarPage("JAGS4TDM - by Oliver Scherf-Clavel (c) 2019 - JMU Wuerzburg"
            selectInput("select_chain", "MCMC Chain:", choices = c(1,2,3,4)),br(),
            wellPanel("Trace plot of MCMC",br(),
               
-              plotOutput("traceplot", height = 800)
+              plotOutput("traceplot", height = 600)
               ),
            wellPanel("Correlation between random effects",br(),
-                     plotOutput("cov_plot", height = 800)
+                     plotOutput("cov_plot", height = 600)
            )### TODO: More diagnostic plots
            ),
   tabPanel("Model File",

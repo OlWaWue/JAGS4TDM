@@ -4,11 +4,13 @@ library('readxl')
 library('shiny')
 library('gridExtra')
 library('PerformanceAnalytics')
+library('MASS')
 
+## Thetas and omega matrix from the Axitinib Base model
 axi_i_mod_pars <- list(thetas=c(0.530,46.6,17.1,0.469,0.457, 44.7, 1.73),
-                       omegas=c(0.476, 0.140, 0.270, 0.0000001, 1.06, 0.38, 0.158, 0.593))
+                       omegas=c(0.476, 0.140, 0.270, 1.06, 0.38, 0.158, 0.593))
 
-
+## Analytical solution of 2cmt model in steady state with lag time
 pk_2cmt_oral_ss <- function(theta, eta, dosing_events, times){
   ii <- dosing_events[,3]
   amt <- dosing_events[,2]
@@ -46,6 +48,7 @@ pk_2cmt_oral_ss <- function(theta, eta, dosing_events, times){
   
 }
 
+## analytical solution of 2cmt model multiple doses with lag time
 pk_2cmt_oral <- function(theta, eta, dosing_events, times){
   
   dosing_time <- dosing_events[,1]
@@ -88,6 +91,7 @@ pk_2cmt_oral <- function(theta, eta, dosing_events, times){
   return(IPRED)
 }
 
+## 1cmt model in ss with lag time
 pk_1cmt_oral_ss<- function(theta, eta, dosing_events, times){
   
   ii <- dosing_events[,3]
@@ -144,7 +148,8 @@ pk_1cmt_oral <- function(theta, eta, dosing_events, times){
   
   return(IPRED)
 }
-## NONMEM like dataset
+
+## Process a NONMEM like dataset
 process_data_set <- function(pk_data = data.frame(time=c(0,4,6,12,30,50),
                                                    amt=c(100,".",".",100,".","."),
                                                    conc=c(".", 2, 3, ".", 1.5, 0.72),
@@ -158,13 +163,18 @@ process_data_set <- function(pk_data = data.frame(time=c(0,4,6,12,30,50),
                              omegas = c(0.51,0.54,0.53, 0.53),
                              TIME = seq(0, 72, by=1), sigma=1.15, steady_state=F, n.comp =1) {
 
+  # inner function to generate individual PK plot
     do_plot <- function(jags_result, nburn=n.burn){
       
+      ## Use the fourth chain for the simulation
       df <- as.data.frame(jags_result[[4]])
       
+      ## remove burnin iterations
       df <- df[-(1:nburn),]
       
       mcmc_se <- list()
+      
+      ## Simulate with the etas obtained by sampling from the posterior distribution
       withProgress(message = "Processing MCMC results", max = nrow(df), {
           for (i in 1:nrow(df)) {
             if(!steady_state & n.comp==1){
@@ -188,13 +198,13 @@ process_data_set <- function(pk_data = data.frame(time=c(0,4,6,12,30,50),
                                               dosing_events = data.frame(time=0, amt=dosing_events$amt[1], ii=dosing_events$ii[1]),
                                               times=TIME)
             } else if (!steady_state & n.comp==3) {
-              mcmc_se[[i]] <- pk_2cmt_oral(theta=thetas,
-                                           eta=c(df$eta1[i],df$eta2[i],df$eta3[i], df$eta4[i], df$eta5[i], df$eta6[i]),
+              mcmc_se[[i]] <- pk_2cmt_oral(theta=thetas, ### ETA 4 is set to zero => no random effect f_oral
+                                           eta=c(df$eta1[i],df$eta2[i],df$eta3[i],0, df$eta4[i], df$eta5[i]),
                                            dosing_events = dosing_events,
                                            times=TIME)
             } else if (steady_state & n.comp==3) {
-              mcmc_se[[i]] <- pk_2cmt_oral_ss(theta=thetas,
-                                              eta=c(df$eta1[i],df$eta2[i],df$eta3[i], df$eta4[i], df$eta5[i], df$eta6[i]),
+              mcmc_se[[i]] <- pk_2cmt_oral_ss(theta=thetas, ### ETA 4 is set to zero => no random effect f_oral
+                                              eta=c(df$eta1[i],df$eta2[i],df$eta3[i], 0, df$eta4[i], df$eta5[i]),
                                               dosing_events = data.frame(time=0, amt=dosing_events$amt[1], ii=dosing_events$ii[1]),
                                               times=TIME)
             }
@@ -207,28 +217,26 @@ process_data_set <- function(pk_data = data.frame(time=c(0,4,6,12,30,50),
       
       df_temp <- NULL
       
+      
+      ## bind simulations in a data.frame
       for (k in 1:nrow(df)) {
         df_temp <- rbind(df_temp, mcmc_se[[k]])
         
       }
       
-      
+      ## Generate Quantils
       s <- apply(df_temp,2,function(x) quantile(x,probs=c(0.05, 0.10, 0.15, 0.20, 0.8, 0.85, 0.9, 0.95, 0.5)))
-      
-      
-      
-      
-      
-    
+
+      ## Combine individual PK data and quantils in a data.frame
         pk_data <- data.frame(time=TIME,
                               s1=s[1,],s2=s[8,], 
                               s3=s[2,],s4=s[7,],
                               s5=s[3,],s6=s[6,],
                               s7=s[4,],s8=s[5,],
-                              max=s[9,])
+                              max=s[9,]) # median 
   
       
-      
+      ## Build raw individual PK plot
       p <- ggplot(pk_data) + 
         geom_ribbon(aes(ymin=s1, ymax=s2, x=time), fill="red", alpha=0.15) + 
         geom_ribbon(aes(ymin=s3, ymax=s4, x=time), fill="red", alpha=0.15) + 
@@ -237,18 +245,18 @@ process_data_set <- function(pk_data = data.frame(time=c(0,4,6,12,30,50),
         geom_line(aes(y=max, x=time))+
         geom_point(data=tdm_data, aes(x=time, y=conc))
       
+      ## Get the last simulated concentration for the boxplot
       c_at_tlast <- df_temp[,ncol(df_temp)]
       
+      ## carry on max value in PK plot for adjusting y-axis
       ind_y_max <- max(pk_data$s2)
       
       ind_y_min <- min(pk_data$s1[pk_data$s1>0])
       
       return(list(p, c_at_tlast, ind_y_max, ind_y_min))
     }
-    
-    
-    
-    ## todo: detect number of etas automatically
+
+    ### Generate MCMC trace plots and distributions for every eta
     mcmc_diagnosticplots <- function(chain=1, jags_result, nburn = n.burn, omega, colour="red") {
       
       df <- as.data.frame(jags_result[[chain]]) ## Dataframe with etas
@@ -325,18 +333,19 @@ process_data_set <- function(pk_data = data.frame(time=c(0,4,6,12,30,50),
     
     
     
-    
+    ### separate dosing events ...
     dosing_events <- data.frame(time=as.numeric(as.character(pk_data[pk_data$evid==1,]$time)),
                                 amt=as.numeric(as.character(pk_data[pk_data$evid==1,]$amt)),
                                 ii=as.numeric(as.character(pk_data[pk_data$evid==1,]$ii)))
     
     
-    
+    ### ... and TDM events
     tdm_data <- data.frame(conc=as.numeric(as.character(pk_data[pk_data$evid==0,]$conc)),
                            time=as.numeric(as.character(pk_data[pk_data$evid==0,]$time)))
     
 
-
+    ### Use JAGS model to sample from posterior distribution
+    ### According to the selected model
     if((n.comp==1) & (!steady_state))  {
     
         jags <- jags.model('1cmt_multiple_dose.bug',
@@ -416,7 +425,7 @@ process_data_set <- function(pk_data = data.frame(time=c(0,4,6,12,30,50),
                          n.adapt = n.iter)
       
       d <- coda.samples(jags,
-                        c('eta1', 'eta2', 'eta3', 'eta4', 'eta5', 'eta6'),
+                        c('eta1', 'eta2', 'eta3', 'eta4', 'eta5'),
                         n.iter, thin=1)
     } else if((n.comp==3) & (steady_state)) {
       jags <- jags.model('AXI_I_ss.bug',
@@ -432,7 +441,7 @@ process_data_set <- function(pk_data = data.frame(time=c(0,4,6,12,30,50),
                          n.adapt = n.iter)
       
       d <- coda.samples(jags,
-                        c('eta1', 'eta2', 'eta3', 'eta4', 'eta5', 'eta6'),
+                        c('eta1', 'eta2', 'eta3', 'eta4', 'eta5'),
                         n.iter, thin=1)
     }
     
