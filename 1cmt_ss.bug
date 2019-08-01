@@ -1,20 +1,23 @@
 model
 {
-  k <- theta[3]*exp(eta3)
+  Cl <- theta[3]*exp(eta3)
   Vd <- theta[2]*exp(eta2)
   ka <- theta[1]*exp(eta1)
   f_oral <- theta[4]*exp(eta4)
   t_lag <- theta[5]
+  
+  k <- Cl/Vd
   
   eta1~dnorm(0, 1/pow(omega[1],2)) # dnorm in JAGS and BUGS uses precision not SD
   eta2~dnorm(0, 1/pow(omega[2],2))
   eta3~dnorm(0, 1/pow(omega[3],2))
   eta4~dnorm(0, 1/pow(omega[4],2))
     
+    
   for (i in 1:length(times)) {          
              
     mu[i]<- ifelse(times[i] < t_lag, 
-                    f_oral*amt/Vd *(ka/(ka-k))*( (exp(-k*(times[i]+ii-t_lag) )/(1-exp(-k*ii))) - (exp(-ka*(times[i]+ii-t_lag) )/(1-exp(-ka*ii))) ), 
+                    f_oral*amt/Vd *(ka/(ka-k))*( (exp(-k*(times[i]-dosing_time+ii-t_lag) )/(1-exp(-k*ii))) - (exp(-ka*(times[i]-dosing_time+ii-t_lag) )/(1-exp(-ka*ii))) ), 
                     f_oral*amt/Vd *(ka/(ka-k))*( (exp(-k*(times[i]-t_lag) )/(1-exp(-k*ii))) - (exp(-ka*(times[i]-t_lag) )/(1-exp(-ka*ii))) ) )
 
     c[i]~dnorm(mu[i], 1/pow(sigma,2))

@@ -42,14 +42,14 @@ shinyServer(function(input, output, session) {
     if(input$choose_PK_mod==2){
       
       app_data$result = process_data_set(app_data$data_set, n.iter = input$mcmc_n.iter, n.burn = input$mcmc_n.burn,
-                                         thetas = c(input$ka, input$V, input$ke, input$F_oral, input$tlag, input$k12, input$k21),
-                                         omegas = c(input$omega1, input$omega2, input$omega3, input$omega4, input$omega5),
+                                         thetas = c(input$ka, input$V, input$Cl, input$F_oral, input$tlag, input$V2, input$Q),
+                                         omegas = c(input$omega1, input$omega2, input$omega3, input$omega4, input$omega5, input$omega6),
                                          TIME =seq(input$TIME[1], input$TIME[2], by=0.2), sigma=input$sigma, 
                                          steady_state = input$choose_SS, n.comp=input$choose_PK_mod) 
                              
     } else {
         app_data$result = process_data_set(app_data$data_set, n.iter = input$mcmc_n.iter, n.burn = input$mcmc_n.burn,
-                                           thetas = c(input$ka, input$V, input$ke, input$F_oral, input$tlag, input$k12, input$k21),
+                                           thetas = c(input$ka, input$V, input$Cl, input$F_oral, input$tlag, input$V2, input$Q),
                                            omegas = c(input$omega1, input$omega2, input$omega3, input$omega4, input$omega5),
                                            TIME =seq(input$TIME[1], input$TIME[2], by=0.2), sigma=input$sigma, 
                                            steady_state = input$choose_SS, n.comp=input$choose_PK_mod)
@@ -75,24 +75,33 @@ shinyServer(function(input, output, session) {
       for(i in 1:input$n.mc){
         
         if(input$choose_PK_mod==1 & !input$choose_SS) {  
-            CP_mc <-  pk_1cmt_oral(theta = c(input$ka, input$V, input$ke, input$F_oral, input$tlag), 
+            CP_mc <-  pk_1cmt_oral(theta = c(input$ka, input$V, input$Cl, input$F_oral, input$tlag), 
                                    eta = c(mc_eta1[i], mc_eta2[i],mc_eta3[i],mc_eta4[i]), 
                                    dosing_events = data.frame(time=as.numeric(as.character(app_data$data_set[app_data$data_set$evid==1,]$time)),
                                                               amt=as.numeric(as.character(app_data$data_set[app_data$data_set$evid==1,]$amt))), 
                                    times=seq(input$TIME[1], input$TIME[2], by=0.2))
-    #    } else if (input$choose_PK_mod==2 & !input$choose_SS) {
-            ## Todo: implement 2-cmt model
+        } else if (input$choose_PK_mod==2 & !input$choose_SS) {
+          CP_mc <-  pk_2cmt_oral(theta = c(input$ka, input$V, input$Cl, input$F_oral, input$tlag, input$V2, input$Q), 
+                                 eta = c(mc_eta1[i], mc_eta2[i],mc_eta3[i],mc_eta4[i],mc_eta5[i],mc_eta6[i]), 
+                                 dosing_events = data.frame(time=as.numeric(as.character(app_data$data_set[app_data$data_set$evid==1,]$time)),
+                                                            amt=as.numeric(as.character(app_data$data_set[app_data$data_set$evid==1,]$amt))), 
+                                 times=seq(input$TIME[1], input$TIME[2], by=0.2))
+          
         } else if (input$choose_PK_mod==1 & input$choose_SS) {
-          CP_mc <-  pk_1cmt_oral_ss(theta = c(input$ka, input$V, input$ke, input$F_oral, input$tlag), 
+          CP_mc <-  pk_1cmt_oral_ss(theta = c(input$ka, input$V, input$Cl, input$F_oral, input$tlag), 
                                  eta = c(mc_eta1[i], mc_eta2[i],mc_eta3[i],mc_eta4[i]), 
                                  dosing_events = data.frame(time=0,
                                                             amt=as.numeric(as.character(app_data$data_set[app_data$data_set$evid==1,]$amt[1])),
                                                             ii=as.numeric(as.character(app_data$data_set[app_data$data_set$evid==1,]$ii[1])), evid=1), 
                                  times=seq(input$TIME[1], input$TIME[2], by=0.2))
+        } else if (input$choose_PK_mod==2 & input$choose_SS) {
+          CP_mc <-  pk_1cmt_oral_ss(theta = c(input$ka, input$V, input$Cl, input$F_oral, input$tlag, input$V2, input$Q), 
+                                    eta = c(mc_eta1[i], mc_eta2[i],mc_eta3[i],mc_eta4[i],mc_eta5[i],mc_eta6[i]), 
+                                    dosing_events = data.frame(time=0,
+                                                               amt=as.numeric(as.character(app_data$data_set[app_data$data_set$evid==1,]$amt[1])),
+                                                               ii=as.numeric(as.character(app_data$data_set[app_data$data_set$evid==1,]$ii[1])), evid=1), 
+                                    times=seq(input$TIME[1], input$TIME[2], by=0.2))
         }
-    #    } else if (input$choose_PK_mod==2 & input$choose_SS) {
-            ## Todo: implement 2-cmt model with ss
-    #    }
         
         
         dat_mc <- cbind(dat_mc, CP_mc)
@@ -107,14 +116,21 @@ shinyServer(function(input, output, session) {
     plot_dat <- data.frame(TIME=seq(input$TIME[1], input$TIME[2], by=0.2),CP_min=s[1,],CP=s[2,],CP_max=s[3,], DELTA=(s[3,]-s[1,]))
 
     pop_y_max <- max(plot_dat$CP_max)
+    pop_y_min <- min(plot_dat$CP_min[plot_dat$CP_min >0])
     ind_y_max <- app_data$result[[7]]
+    ind_y_min <- app_data$result[[8]]
+    
+     
     
     tdm_data <- data.frame(conc=as.numeric(as.character(app_data$data_set[app_data$data_set$evid==0,]$conc)),
                            time=as.numeric(as.character(app_data$data_set[app_data$data_set$evid==0,]$time)))
     
+    pop_y_max <- ifelse(max(tdm_data$conc) > pop_y_max, max(tdm_data$conc), pop_y_max)
+    ind_y_max <- ifelse(max(tdm_data$conc) > ind_y_max, max(tdm_data$conc), ind_y_max)
+    
     ind_boxplot <- ggplot(data=data.frame(conc=app_data$result[[6]], time="")) + geom_boxplot(aes(x=time, y=conc)) + theme_bw()  +
       theme(axis.text.y = element_blank(), axis.title.y = element_blank(), 
-            axis.ticks.y = element_blank())+ 
+          axis.ticks.y = element_blank())+ 
       ggtitle(paste("C last at ", input$TIME[2], " h"), "Individual") + xlab("") + ylim(c(0,ind_y_max*1.2))
     
     
@@ -132,6 +148,13 @@ shinyServer(function(input, output, session) {
       theme_bw() + xlab("Time [h]") + ylab("Concentration [mg/L]") + ggtitle("MC Result without data (prior)", "90% PI") +
       geom_point(data=tdm_data, aes(x=time, y=conc)) + ylim(c(0,pop_y_max*1.2))
     
+    if(input$log_y){
+      ind_plot <- ind_plot + scale_y_continuous(trans = "log10", limits=c(ind_y_min,ind_y_max*1.2))
+      pop_plot <- pop_plot + scale_y_continuous(trans = "log10", limits=c(pop_y_min,ind_y_max*1.2))
+      ind_boxplot <- ind_boxplot + scale_y_continuous(trans = "log10", limits=c(ind_y_min,pop_y_max*1.2))
+      pop_boxplot <- pop_boxplot + scale_y_continuous(trans = "log10", limits=c(pop_y_min,pop_y_max*1.2))
+    }
+    
     plots <- list(ind_plot, pop_plot, ind_boxplot, pop_boxplot)
   }
   
@@ -147,7 +170,7 @@ shinyServer(function(input, output, session) {
   output$data_set <- renderTable({
     display_data <-app_data$data_set
     
-    if(input$choose_PK_mod==1 & input$choose_SS){
+    if(input$choose_SS){
       dosing_data <- display_data[display_data$evid==1,]
       tdm_data <- display_data[display_data$evid==0,]
       
@@ -171,10 +194,21 @@ shinyServer(function(input, output, session) {
     chain = as.numeric(input$select_chain)
     
     ## Has to be generalized 
-    gridExtra::grid.arrange(app_data$result[[chain]]$p_iter_ETA1, app_data$result[[chain]]$p_dens_ETA1,   
-                            app_data$result[[chain]]$p_iter_ETA2, app_data$result[[chain]]$p_dens_ETA2,
-                            app_data$result[[chain]]$p_iter_ETA3, app_data$result[[chain]]$p_dens_ETA3,
-                            app_data$result[[chain]]$p_iter_ETA4, app_data$result[[chain]]$p_dens_ETA4, nrow=4, ncol=2)
+    
+    if(input$choose_PK_mod==1) {
+        gridExtra::grid.arrange(app_data$result[[chain]]$p_iter_ETA1, app_data$result[[chain]]$p_dens_ETA1,    
+                                app_data$result[[chain]]$p_iter_ETA2, app_data$result[[chain]]$p_dens_ETA2, 
+                                app_data$result[[chain]]$p_iter_ETA3, app_data$result[[chain]]$p_dens_ETA3, 
+                                app_data$result[[chain]]$p_iter_ETA4, app_data$result[[chain]]$p_dens_ETA4, nrow=4, ncol=2)  
+    } else if(input$choose_PK_mod==2) {
+        gridExtra::grid.arrange(app_data$result[[chain]]$p_iter_ETA1, app_data$result[[chain]]$p_dens_ETA1,    
+                                app_data$result[[chain]]$p_iter_ETA2, app_data$result[[chain]]$p_dens_ETA2, 
+                                app_data$result[[chain]]$p_iter_ETA3, app_data$result[[chain]]$p_dens_ETA3, 
+                                app_data$result[[chain]]$p_iter_ETA4, app_data$result[[chain]]$p_dens_ETA4,
+                                app_data$result[[chain]]$p_iter_ETA5, app_data$result[[chain]]$p_dens_ETA5,
+                                app_data$result[[chain]]$p_iter_ETA6, app_data$result[[chain]]$p_dens_ETA6, nrow=6, ncol=2) 
+    }
+    
     
   })
   
@@ -199,16 +233,7 @@ shinyServer(function(input, output, session) {
                )
   
   
-  observeEvent(input$choose_PK_mod,{
-    if(input$choose_PK_mod==2){
-          showNotification("Sorry! Feature not implemented, yet. Only 1 cmt available!", 
-                           action = NULL, duration = 25, closeButton = TRUE,
-                           id = NULL, type = "error",
-                           session = getDefaultReactiveDomain())
-          
-          updateSelectInput(session, "choose_PK_mod", selected=1) ### remove when 2cmt is implemented)
-    }
-  })
+  
 })
 
 

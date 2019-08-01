@@ -7,22 +7,14 @@ library('PerformanceAnalytics')
 
 
 
-pk <- pk_2cmt_oral(theta=c(1.2, 60, 0.15, 0.9, 0.5, 300, 15),
-             eta=c(0,0,0,0,0,0),
-             dosing_events = data.frame(time=c(0,12), amt=c(100,100) ),
-             times = seq(0,48,0.1))
 
-data <- data.frame(conc=pk, time=seq(0,48,0.1)) 
-
-ggplot(data) + geom_line(aes(x=time, y=conc))+ geom_vline(aes(xintercept=12)) # + scale_y_log10()
-
-pk_2cmt_oral <- function(theta, eta, dosing_events, times){
-  
-  dosing_time <- dosing_events[,1]
+pk_2cmt_oral_ss <- function(theta, eta, dosing_events, times){
+  ii <- dosing_events[,3]
   amt <- dosing_events[,2]
   
+  dosing_time <- dosing_events[,1]
   
-  k <- theta[3]*exp(eta[3])
+  Cl <- theta[3]*exp(eta[3])
   V1 <- theta[2]*exp(eta[2])
   ka <- theta[1]*exp(eta[1])
   f_oral <- theta[4]*exp(eta[4])
@@ -30,14 +22,54 @@ pk_2cmt_oral <- function(theta, eta, dosing_events, times){
   Q <- theta[7] * exp(eta[6])
   t_lag <- theta[5]
   
+  k=Cl/V1
   k12 = Q/V1
   k21 = Q/V2
   
   
   beta = 0.5 * (k12 + k21 + k - sqrt((k12 + k21 + k)^2 - 4 * k21 * k))
+  
   alpha = (k21 * k) / beta
-  A = 1/V1 * (alpha - k21)/(alpha - beta)
-  B = 1/V1 * (beta - k21)/(beta - alpha)
+  
+  A = ka/V1 * (k21-alpha)/((ka-alpha) * (beta-alpha))
+  B = ka/V1 * (k21-beta)/((ka-beta) * (alpha-beta))
+  
+  IPRED <- vector()
+  
+  for(i in 1:length(times))
+    IPRED[i] <- ifelse(times[i] < t_lag, 
+                       f_oral*amt * ( (A*exp(-alpha*(times[i]-dosing_time+ii-t_lag)))/(1-exp(-alpha*ii)) + (B * exp(-beta*(times[i]-dosing_time+ii-t_lag)))/(1-exp(-beta*ii))  - ((A+B)*exp(-ka*(times[i]-dosing_time+ii-t_lag)))/(1-exp(-ka*ii)) ), 
+                       f_oral*amt * ( (A*exp(-alpha*(times[i]-dosing_time-t_lag)))/(1-exp(-alpha*ii)) + (B * exp(-beta*(times[i]-dosing_time-t_lag)))/(1-exp(-beta*ii))  - ((A+B)*exp(-ka*(times[i]-dosing_time-t_lag)))/(1-exp(-ka*ii)) )  )
+  
+  return(IPRED)
+  
+}
+
+pk_2cmt_oral <- function(theta, eta, dosing_events, times){
+  
+  dosing_time <- dosing_events[,1]
+  amt <- dosing_events[,2]
+  
+  
+  Cl <- theta[3]*exp(eta[3])
+  V1 <- theta[2]*exp(eta[2])
+  ka <- theta[1]*exp(eta[1])
+  f_oral <- theta[4]*exp(eta[4])
+  V2 <- theta[6] * exp(eta[5])
+  Q <- theta[7] * exp(eta[6])
+  t_lag <- theta[5]
+  
+  k=Cl/V1
+  k12 = Q/V1
+  k21 = Q/V2
+  
+  
+  beta = 0.5 * (k12 + k21 + k - sqrt((k12 + k21 + k)^2 - 4 * k21 * k))
+  
+  alpha = (k21 * k) / beta
+  
+  A = ka/V1 * (k21-alpha)/((ka-alpha) * (beta-alpha))
+  B = ka/V1 * (k21-beta)/((ka-beta) * (alpha-beta))
   
   IPRED <- vector()
   
@@ -60,19 +92,23 @@ pk_1cmt_oral_ss<- function(theta, eta, dosing_events, times){
   ii <- dosing_events[,3]
   amt <- dosing_events[,2]
   
+  dosing_time <- dosing_events[,1]
   
+  Cl <-theta[3]*exp(eta[3])
   
-  k <- theta[3]*exp(eta[3])
+ 
   Vd <- theta[2]*exp(eta[2])
   ka <- theta[1]*exp(eta[1])
   f_oral <- theta[4]*exp(eta[4])
   t_lag <- theta[5]
 
+  k <- Cl/Vd
+  
   IPRED <- vector()
   
   for(i in 1:length(times))
     IPRED[i] <- ifelse(times[i] < t_lag, 
-                    f_oral*amt/Vd *(ka/(ka-k))*( (exp(-k*(times[i]+ii-t_lag) )/(1-exp(-k*ii))) - (exp(-ka*(times[i]+ii-t_lag) )/(1-exp(-ka*ii))) ), 
+                    f_oral*amt/Vd *(ka/(ka-k))*( (exp(-k*(times[i]-dosing_time+ii-t_lag) )/(1-exp(-k*ii))) - (exp(-ka*(times[i]-dosing_time+ii-t_lag) )/(1-exp(-ka*ii))) ), 
                     f_oral*amt/Vd *(ka/(ka-k))*( (exp(-k*(times[i]-t_lag) )/(1-exp(-k*ii))) - (exp(-ka*(times[i]-t_lag) )/(1-exp(-ka*ii))) ) )
     
   return(IPRED)
@@ -85,11 +121,13 @@ pk_1cmt_oral <- function(theta, eta, dosing_events, times){
   dosing_time <- dosing_events[,1]
   amt <- dosing_events[,2]
   
-  k <- theta[3]*exp(eta[3])
+  Cl <- theta[3]*exp(eta[3])
   Vd <- theta[2]*exp(eta[2])
   ka <- theta[1]*exp(eta[1])
   F_oral <- theta[4]*exp(eta[4])
   t_lag <- theta[5]
+  
+  k <- Cl/Vd
   
   IPRED <- vector()
   
@@ -133,11 +171,21 @@ process_data_set <- function(pk_data = data.frame(time=c(0,4,6,12,30,50),
                                              eta=c(df$eta1[i],df$eta2[i],df$eta3[i], df$eta4[i]),
                                              dosing_events = dosing_events,
                                              times=TIME)
-            } else {
+            } else if (steady_state & n.comp==1) {
                 mcmc_se[[i]] <- pk_1cmt_oral_ss(theta=thetas,
                                              eta=c(df$eta1[i],df$eta2[i],df$eta3[i], df$eta4[i]),
                                              dosing_events = data.frame(time=0, amt=dosing_events$amt[1], ii=dosing_events$ii[1]),
                                              times=TIME)
+            } else if (!steady_state & n.comp==2) {
+              mcmc_se[[i]] <- pk_2cmt_oral(theta=thetas,
+                                              eta=c(df$eta1[i],df$eta2[i],df$eta3[i], df$eta4[i], df$eta5[i], df$eta6[i]),
+                                              dosing_events = dosing_events,
+                                              times=TIME)
+            } else if (steady_state & n.comp==2) {
+              mcmc_se[[i]] <- pk_2cmt_oral_ss(theta=thetas,
+                                              eta=c(df$eta1[i],df$eta2[i],df$eta3[i], df$eta4[i], df$eta5[i], df$eta6[i]),
+                                              dosing_events = data.frame(time=0, amt=dosing_events$amt[1], ii=dosing_events$ii[1]),
+                                              times=TIME)
             }
             
             incProgress(1)
@@ -182,7 +230,9 @@ process_data_set <- function(pk_data = data.frame(time=c(0,4,6,12,30,50),
       
       ind_y_max <- max(pk_data$s2)
       
-      return(list(p, c_at_tlast, ind_y_max))
+      ind_y_min <- min(pk_data$s1[pk_data$s1>0])
+      
+      return(list(p, c_at_tlast, ind_y_max, ind_y_min))
     }
     
     
@@ -213,6 +263,7 @@ process_data_set <- function(pk_data = data.frame(time=c(0,4,6,12,30,50),
         
         dens_post <- density(df[,n.et], adjust=2)
         max_eta <- dens_post$x[which.max(dens_post$y)]
+        
         dens_post <- data.frame(ETA=dens_post$x, freq=dens_post$y, max_eta=max_eta)
         x_this_eta <- seq(min(dens_post$ETA), max(dens_post$ETA), length.out = 512)
         
@@ -281,7 +332,7 @@ process_data_set <- function(pk_data = data.frame(time=c(0,4,6,12,30,50),
                            data = list('c' = tdm_data$conc,
                                        'amt' = dosing_events$amt, 
                                        'dosing_time' = dosing_events$time,
-                                       'ts'= tdm_data$time,
+                                       'times'= tdm_data$time,
                                        "theta"=thetas,
                                        "omega"=sqrt(omegas),
                                        'sigma'=sqrt(sigma) ),
@@ -297,6 +348,7 @@ process_data_set <- function(pk_data = data.frame(time=c(0,4,6,12,30,50),
                              data = list('c' = tdm_data$conc,
                                          'amt' = dosing_events$amt[1], 
                                          'ii' = dosing_events$ii[1],
+                                         'dosing_time' = dosing_events$time[1],
                                          'times'= tdm_data$time,
                                          "theta"=thetas,
                                          "omega"=sqrt(omegas),
@@ -307,6 +359,38 @@ process_data_set <- function(pk_data = data.frame(time=c(0,4,6,12,30,50),
           d <- coda.samples(jags,
                             c('eta1', 'eta2', 'eta3', 'eta4'),
                             n.iter, thin=1)
+    } else if((n.comp==2) & (!steady_state)) {
+      
+      jags <- jags.model('2cmt_multiple_dose.bug',
+                         data = list('c' = tdm_data$conc,
+                                     'amt' = dosing_events$amt, 
+                                     'dosing_time' = dosing_events$time,
+                                     'times'= tdm_data$time,
+                                     "theta"=thetas,
+                                     "omega"=sqrt(omegas),
+                                     'sigma'=sqrt(sigma) ),
+                         n.chains = 4,
+                         n.adapt = n.iter)
+      
+      d <- coda.samples(jags,
+                        c('eta1', 'eta2', 'eta3', 'eta4', 'eta5', 'eta6'),
+                        n.iter, thin=1)
+    } else if((n.comp==2) & (steady_state)) {
+      jags <- jags.model('2cmt_ss.bug',
+                         data = list('c' = tdm_data$conc,
+                                     'amt' = dosing_events$amt[1], 
+                                     'ii' = dosing_events$ii[1],
+                                     'dosing_time' = dosing_events$time[1],
+                                     'times'= tdm_data$time,
+                                     "theta"=thetas,
+                                     "omega"=sqrt(omegas),
+                                     'sigma'=sqrt(sigma) ),
+                         n.chains = 4,
+                         n.adapt = n.iter)
+      
+      d <- coda.samples(jags,
+                        c('eta1', 'eta2', 'eta3', 'eta4', 'eta5', 'eta6'),
+                        n.iter, thin=1)
     }
     
     
@@ -322,7 +406,7 @@ process_data_set <- function(pk_data = data.frame(time=c(0,4,6,12,30,50),
     
     
     
-      result = list(mcmc_plots_1, mcmc_plots_2, mcmc_plots_3, mcmc_plots_4, pk_profile=pk_profile[[1]], c_at_tlast=pk_profile[[2]], ind_y_max=pk_profile[[3]])
+      result = list(mcmc_plots_1, mcmc_plots_2, mcmc_plots_3, mcmc_plots_4, pk_profile=pk_profile[[1]], c_at_tlast=pk_profile[[2]], ind_y_max=pk_profile[[3]], ind_y_min=pk_profile[[4]])
       
       return(result)
 }
