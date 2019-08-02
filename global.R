@@ -281,12 +281,13 @@ process_data_set <- function(pk_data = data.frame(time=c(0,4,6,12,30,50),
       
       df_temp <- NULL
       
-      
-      ## bind simulations in a data.frame
-      for (k in 1:nrow(df)) {
-        df_temp <- rbind(df_temp, mcmc_se[[k]])
-        
-      }
+      withProgress(message = "Calculating Prediction interval", max = nrow(df), {
+          ## bind simulations in a data.frame
+          for (k in 1:nrow(df)) {
+            df_temp <- rbind(df_temp, mcmc_se[[k]])
+            incProgress(1)
+          }
+      })
       
       ## Generate Quantils
       s <- apply(df_temp,2,function(x) quantile(x,probs=c(0.05, 0.10, 0.15, 0.20, 0.8, 0.85, 0.9, 0.95, 0.5)))
