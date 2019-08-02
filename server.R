@@ -234,7 +234,7 @@ shinyServer(function(input, output, session) {
         dist_plots[[4]] <- ggplot(  ) +theme_bw()+ 
           geom_density(data=pop_pars, aes(x=pop_F_oral, y=..density..), colour="blue", size=.5, fill="blue",alpha=0.25, linetype=1)+
           geom_density(data=ind_pars,aes(x=ind_F_oral, y=..density..), colour="red", size=.5, fill="red",alpha=0.25, linetype=1)+
-          xlab("Systemicall available fraction") + ylab("Frequency")
+          xlab("Systemically available fraction") + ylab("Frequency")
         
         grid.arrange(dist_plots[[1]],dist_plots[[2]],dist_plots[[3]],dist_plots[[4]], nrow=2, ncol=2)
       
@@ -279,7 +279,7 @@ shinyServer(function(input, output, session) {
       dist_plots[[6]] <- ggplot(  ) +theme_bw()+ 
         geom_density(data=pop_pars, aes(x=pop_F_oral, y=..density..), colour="blue", size=.5, fill="blue",alpha=0.25, linetype=1)+
         geom_density(data=ind_pars,aes(x=ind_F_oral, y=..density..), colour="red", size=.5, fill="red",alpha=0.25, linetype=1)+
-        xlab("Systemicall available fraction") + ylab("Frequency")
+        xlab("Systemically available fraction") + ylab("Frequency")
       
       grid.arrange(dist_plots[[1]],dist_plots[[2]],dist_plots[[3]],dist_plots[[4]],dist_plots[[5]],dist_plots[[6]], nrow=3, ncol=2)
     }
