@@ -17,8 +17,12 @@ shinyUI(navbarPage("JAGS4TDM - by Oliver Scherf-Clavel (c) 2019 - JMU Wuerzburg"
                      width = NULL,buttonLabel = "Browse...", 
                      placeholder = "No file selected"),
 
-           selectInput("choose_PK_mod", "PK Model", selected=3, list("Generic 1 compartment"=1, "Generic 2 compartments"=2, "Axitinib Basemod"=3)),
-           conditionalPanel(condition="input.choose_PK_mod!=3",
+           selectInput("choose_PK_mod", "PK Model", selected=3, list("Generic 1 compartment"=1, 
+                                                                     "Generic 2 compartments"=2, 
+                                                                     "Axitinib Final model, fed"=3,
+                                                                     "Axitinib Final model, fasted"=4,
+                                                                     "Axitinib Final model, fed, XLI"=5)),
+           conditionalPanel(condition="input.choose_PK_mod<=2",
                numericInput("ka", "Absorption rate constant(Ka) [1/h]", value = 0.530),
                numericInput("V", "Central Volume (V) [L]", value = 46.6),
                numericInput("Cl", "Clearance (Cl) [L/h]", value =17.1),
@@ -28,7 +32,10 @@ shinyUI(navbarPage("JAGS4TDM - by Oliver Scherf-Clavel (c) 2019 - JMU Wuerzburg"
                numericInput("V2", "Peripheral Volume (V2) [L]", value = 44.7),
                numericInput("Q", "Intercompartmental Clearance (Q) [L/h]", value = 1.73)
            ),
-           conditionalPanel(condition="input.choose_PK_mod!=3",
+           conditionalPanel(condition="input.choose_PK_mod>2",
+                            numericInput("WT", "Patient weight (WT) [kg]", value = 75)
+           ),
+           conditionalPanel(condition="input.choose_PK_mod<=2",
                  numericInput("tlag", "Lagtime [h]", value = 0.457),
                  numericInput("omega1", "Variance of ETA1 (ka)", value = 0.476),
                  numericInput("omega2", "Variance of ETA2 (V)", value = 0.140),

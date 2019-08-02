@@ -43,7 +43,18 @@ shinyServer(function(input, output, session) {
   ## MCMC is outsourced to global.R
   updatePKPlot <- function(){
     
-
+    ### In this very first part: Covariates need to change the THETA in global.R for coded model parameters
+    ##
+    if(input$choose_PK_mod >=3 & input$choose_PK_mod <=5){
+      
+      #Change typical value for Vc with WT according to pop PK model
+      
+      axi_i_mod_fed$thetas[2] <- axi_i_mod_fed$thetas[2] *(input$WT/75.0)^0.758
+      axi_i_mod_fasted$thetas[2] <- axi_i_mod_fasted$thetas[2] *(input$WT/75.0)^0.758
+      axi_i_mod_fed_form_XLI$thetas[2] <- axi_i_mod_fed_form_XLI$thetas[2] *(input$WT/75.0)^0.758
+    }
+    
+    ## Decide which PK model was choosen and act accordingly
     if(input$choose_PK_mod==2){
       
       app_data$result = process_data_set(app_data$data_set, n.iter = input$mcmc_n.iter, n.burn = input$mcmc_n.burn,
@@ -59,10 +70,25 @@ shinyServer(function(input, output, session) {
                                            TIME =seq(input$TIME[1], input$TIME[2], by=0.2), sigma=input$sigma, 
                                            steady_state = input$choose_SS, n.comp=input$choose_PK_mod)
     } else if(input$choose_PK_mod==3) {
-      ### Dont get Thetas and Omega matrix from UI, use axi_i_mod_pars
+      ### Dont get Thetas and Omega matrix from UI, use axi_i_mod_fed from global.R
       app_data$result = process_data_set(app_data$data_set, n.iter = input$mcmc_n.iter, n.burn = input$mcmc_n.burn,
-                                         thetas = axi_i_mod_pars$thetas,
-                                         omegas = axi_i_mod_pars$omegas,
+                                         thetas = axi_i_mod_fed$thetas,
+                                         omegas = axi_i_mod_fed$omegas,
+                                         TIME =seq(input$TIME[1], input$TIME[2], by=0.2), sigma=input$sigma, 
+                                         steady_state = input$choose_SS, n.comp=input$choose_PK_mod) 
+    } else if(input$choose_PK_mod==4) {
+      ### Dont get Thetas and Omega matrix from UI, use axi_i_mod_fed from global.R
+      app_data$result = process_data_set(app_data$data_set, n.iter = input$mcmc_n.iter, n.burn = input$mcmc_n.burn,
+                                         thetas = axi_i_mod_fasted$thetas,
+                                         omegas = axi_i_mod_fasted$omegas,
+                                         TIME =seq(input$TIME[1], input$TIME[2], by=0.2), sigma=input$sigma, 
+                                         steady_state = input$choose_SS, n.comp=input$choose_PK_mod) 
+    }
+    else if(input$choose_PK_mod==5) {
+      ### Dont get Thetas and Omega matrix from UI, use axi_i_mod_fed from global.R
+      app_data$result = process_data_set(app_data$data_set, n.iter = input$mcmc_n.iter, n.burn = input$mcmc_n.burn,
+                                         thetas = axi_i_mod_fed_form_XLI$thetas,
+                                         omegas = axi_i_mod_fed_form_XLI$omegas,
                                          TIME =seq(input$TIME[1], input$TIME[2], by=0.2), sigma=input$sigma, 
                                          steady_state = input$choose_SS, n.comp=input$choose_PK_mod) 
     }
@@ -84,11 +110,11 @@ shinyServer(function(input, output, session) {
       ### Generate n.mc samples for every random effect
       ### Correlation between V and Cl and Q and V2 is simulated by 
       ### sampling from multivariate normal distributions
-      cov_mat_1 <- matrix(c(axi_i_mod_pars$omegas[3], axi_i_mod_pars$omegas[6],
-               axi_i_mod_pars$omegas[6], axi_i_mod_pars$omegas[2]), nrow=2, ncol=2)
+      cov_mat_1 <- matrix(c(axi_i_mod_fed$omegas[3], axi_i_mod_fed$omegas[6],
+               axi_i_mod_fed$omegas[6], axi_i_mod_fed$omegas[2]), nrow=2, ncol=2)
       
-      cov_mat_2 <- matrix(c(axi_i_mod_pars$omegas[5], axi_i_mod_pars$omegas[7],
-               axi_i_mod_pars$omegas[7], axi_i_mod_pars$omegas[4]), nrow=2, ncol=2)
+      cov_mat_2 <- matrix(c(axi_i_mod_fed$omegas[5], axi_i_mod_fed$omegas[7],
+               axi_i_mod_fed$omegas[7], axi_i_mod_fed$omegas[4]), nrow=2, ncol=2)
       
       means <- c(0,0)
       
@@ -99,7 +125,53 @@ shinyServer(function(input, output, session) {
       mc_eta2 <- etas1[,2]
       mc_eta3 <- etas1[,1]
       
-      mc_eta1<- (rnorm(n = input$n.mc, mean=0, sd=sqrt(axi_i_mod_pars$omegas[3])))
+      mc_eta1<- (rnorm(n = input$n.mc, mean=0, sd=sqrt(axi_i_mod_fed$omegas[3])))
+      mc_eta4<- etas1[,2]
+      mc_eta5<- etas1[,1]
+    } else if (input$choose_PK_mod==4){
+      
+      ### Generate n.mc samples for every random effect
+      ### Correlation between V and Cl and Q and V2 is simulated by 
+      ### sampling from multivariate normal distributions
+      cov_mat_1 <- matrix(c(axi_i_mod_fasted$omegas[3], axi_i_mod_fasted$omegas[6],
+                            axi_i_mod_fasted$omegas[6], axi_i_mod_fasted$omegas[2]), nrow=2, ncol=2)
+      
+      cov_mat_2 <- matrix(c(axi_i_mod_fasted$omegas[5], axi_i_mod_fasted$omegas[7],
+                            axi_i_mod_fasted$omegas[7], axi_i_mod_fasted$omegas[4]), nrow=2, ncol=2)
+      
+      means <- c(0,0)
+      
+      etas1 <- mvrnorm(n=input$n.mc, means, cov_mat_1)
+      
+      etas2 <- mvrnorm(n=input$n.mc, means, cov_mat_2)
+      
+      mc_eta2 <- etas1[,2]
+      mc_eta3 <- etas1[,1]
+      
+      mc_eta1<- (rnorm(n = input$n.mc, mean=0, sd=sqrt(axi_i_mod_fed$omegas[3])))
+      mc_eta4<- etas1[,2]
+      mc_eta5<- etas1[,1]
+    } else if (input$choose_PK_mod==5){
+      
+      ### Generate n.mc samples for every random effect
+      ### Correlation between V and Cl and Q and V2 is simulated by 
+      ### sampling from multivariate normal distributions
+      cov_mat_1 <- matrix(c(axi_i_mod_fed_form_XLI$omegas[3], axi_i_mod_fed_form_XLI$omegas[6],
+                            axi_i_mod_fed_form_XLI$omegas[6], axi_i_mod_fed_form_XLI$omegas[2]), nrow=2, ncol=2)
+      
+      cov_mat_2 <- matrix(c(axi_i_mod_fed_form_XLI$omegas[5], axi_i_mod_fed_form_XLI$omegas[7],
+                            axi_i_mod_fed_form_XLI$omegas[7], axi_i_mod_fed_form_XLI$omegas[4]), nrow=2, ncol=2)
+      
+      means <- c(0,0)
+      
+      etas1 <- mvrnorm(n=input$n.mc, means, cov_mat_1)
+      
+      etas2 <- mvrnorm(n=input$n.mc, means, cov_mat_2)
+      
+      mc_eta2 <- etas1[,2]
+      mc_eta3 <- etas1[,1]
+      
+      mc_eta1<- (rnorm(n = input$n.mc, mean=0, sd=sqrt(axi_i_mod_fed$omegas[3])))
       mc_eta4<- etas1[,2]
       mc_eta5<- etas1[,1]
     }
@@ -141,7 +213,7 @@ shinyServer(function(input, output, session) {
                                     times=seq(input$TIME[1], input$TIME[2], by=0.2))
         } else if (input$choose_PK_mod==3 & !input$choose_SS) {
           ## structural model of axitinib base model is generic oral 2 compartments
-          CP_mc <-  pk_2cmt_oral(theta = axi_i_mod_pars$thetas, 
+          CP_mc <-  pk_2cmt_oral(theta = axi_i_mod_fed$thetas, 
                                  eta = c(mc_eta1[i], mc_eta2[i],mc_eta3[i],0,mc_eta4[i],mc_eta5[i]), 
                                  dosing_events = data.frame(time=as.numeric(as.character(app_data$data_set[app_data$data_set$evid==1,]$time)),
                                                             amt=as.numeric(as.character(app_data$data_set[app_data$data_set$evid==1,]$amt))), 
@@ -149,14 +221,50 @@ shinyServer(function(input, output, session) {
           
         } else if (input$choose_PK_mod==3 & input$choose_SS) {
           ## structural model of axitinib base model is generic oral 2 compartments
-          CP_mc <-  pk_2cmt_oral_ss(theta = axi_i_mod_pars$thetas, 
+          CP_mc <-  pk_2cmt_oral_ss(theta = axi_i_mod_fed$thetas, 
                                  eta = c(mc_eta1[i], mc_eta2[i],mc_eta3[i],0, mc_eta4[i],mc_eta5[i]), 
                                  dosing_events = data.frame(time=0,
                                                             amt=as.numeric(as.character(app_data$data_set[app_data$data_set$evid==1,]$amt[1])),
                                                             ii=as.numeric(as.character(app_data$data_set[app_data$data_set$evid==1,]$ii[1])), evid=1), 
                                  times=seq(input$TIME[1], input$TIME[2], by=0.2))
           
+        } else if (input$choose_PK_mod==4 & !input$choose_SS) {
+          ## structural model of axitinib base model is generic oral 2 compartments
+          CP_mc <-  pk_2cmt_oral(theta = axi_i_mod_fasted$thetas, 
+                                 eta = c(mc_eta1[i], mc_eta2[i],mc_eta3[i],0,mc_eta4[i],mc_eta5[i]), 
+                                 dosing_events = data.frame(time=as.numeric(as.character(app_data$data_set[app_data$data_set$evid==1,]$time)),
+                                                            amt=as.numeric(as.character(app_data$data_set[app_data$data_set$evid==1,]$amt))), 
+                                 times=seq(input$TIME[1], input$TIME[2], by=0.2))
+          
+        } else if (input$choose_PK_mod==4 & input$choose_SS) {
+          ## structural model of axitinib base model is generic oral 2 compartments
+          CP_mc <-  pk_2cmt_oral_ss(theta = axi_i_mod_fasted$thetas, 
+                                    eta = c(mc_eta1[i], mc_eta2[i],mc_eta3[i],0, mc_eta4[i],mc_eta5[i]), 
+                                    dosing_events = data.frame(time=0,
+                                                               amt=as.numeric(as.character(app_data$data_set[app_data$data_set$evid==1,]$amt[1])),
+                                                               ii=as.numeric(as.character(app_data$data_set[app_data$data_set$evid==1,]$ii[1])), evid=1), 
+                                    times=seq(input$TIME[1], input$TIME[2], by=0.2))
+          
+        } else if (input$choose_PK_mod==5 & !input$choose_SS) {
+          ## structural model of axitinib base model is generic oral 2 compartments
+          CP_mc <-  pk_2cmt_oral(theta = axi_i_mod_fed_form_XLI$thetas, 
+                                 eta = c(mc_eta1[i], mc_eta2[i],mc_eta3[i],0,mc_eta4[i],mc_eta5[i]), 
+                                 dosing_events = data.frame(time=as.numeric(as.character(app_data$data_set[app_data$data_set$evid==1,]$time)),
+                                                            amt=as.numeric(as.character(app_data$data_set[app_data$data_set$evid==1,]$amt))), 
+                                 times=seq(input$TIME[1], input$TIME[2], by=0.2))
+          
+        } else if (input$choose_PK_mod==5 & input$choose_SS) {
+          ## structural model of axitinib base model is generic oral 2 compartments
+          CP_mc <-  pk_2cmt_oral_ss(theta = axi_i_mod_fed_form_XLI$thetas, 
+                                    eta = c(mc_eta1[i], mc_eta2[i],mc_eta3[i],0, mc_eta4[i],mc_eta5[i]), 
+                                    dosing_events = data.frame(time=0,
+                                                               amt=as.numeric(as.character(app_data$data_set[app_data$data_set$evid==1,]$amt[1])),
+                                                               ii=as.numeric(as.character(app_data$data_set[app_data$data_set$evid==1,]$ii[1])), evid=1), 
+                                    times=seq(input$TIME[1], input$TIME[2], by=0.2))
+          
         } 
+        
+        
         
         
         dat_mc <- cbind(dat_mc, CP_mc)
@@ -278,7 +386,7 @@ shinyServer(function(input, output, session) {
                                 app_data$result[[chain]]$p_iter_ETA4, app_data$result[[chain]]$p_dens_ETA4,
                                 app_data$result[[chain]]$p_iter_ETA5, app_data$result[[chain]]$p_dens_ETA5,
                                 app_data$result[[chain]]$p_iter_ETA6, app_data$result[[chain]]$p_dens_ETA6, nrow=6, ncol=2, widths=c(3,1)) 
-    } else if(input$choose_PK_mod==3) {
+    } else if(input$choose_PK_mod>=3 & input$choose_PK_mod <=5) {
       gridExtra::grid.arrange(app_data$result[[chain]]$p_iter_ETA1, app_data$result[[chain]]$p_dens_ETA1,    
                               app_data$result[[chain]]$p_iter_ETA2, app_data$result[[chain]]$p_dens_ETA2, 
                               app_data$result[[chain]]$p_iter_ETA3, app_data$result[[chain]]$p_dens_ETA3, 
@@ -302,9 +410,9 @@ shinyServer(function(input, output, session) {
           includeText("1cmt_ss.bug")
         } else if (input$choose_PK_mod==2 & input$choose_SS) {
           includeText("2cmt_ss.bug")
-        } else if (input$choose_PK_mod==3 & input$choose_SS) {
+        } else if ( (input$choose_PK_mod>=3 & input$choose_PK_mod<=5) & input$choose_SS) {
           includeText("AXI_I_ss.bug")
-        } else if (input$choose_PK_mod==3 & !input$choose_SS) {
+        } else if ((input$choose_PK_mod>=3 & input$choose_PK_mod<=5) & !input$choose_SS) {
           includeText("AXI_I_multiple_dose.bug")
         }
     
@@ -318,7 +426,11 @@ shinyServer(function(input, output, session) {
     } else if(input$choose_PK_mod==2){
       paste("Generic two compartment model with first order absorption and linear elimination")
     } else if(input$choose_PK_mod==3) {
-      paste("Demo using the Axitinib Base model from Garrett et al. British J Clin Pharmacol, DOI: 10.1111/bcp.12206")
+      paste("Demo using the Axitinib Final model in <b>fed</b> state from Garrett et al. British J Clin Pharmacol, DOI: 10.1111/bcp.12206")
+    } else if(input$choose_PK_mod==4) {
+      paste("Demo using the Axitinib Final model in <b>fasted</b> state from Garrett et al. British J Clin Pharmacol, DOI: 10.1111/bcp.12206")
+    } else if(input$choose_PK_mod==5) {
+      paste("Demo using the Axitinib Final model in <b>fed</b> state and the <b>final formulation</b>  from Garrett et al. British J Clin Pharmacol, DOI: 10.1111/bcp.12206")
     }
   })
   

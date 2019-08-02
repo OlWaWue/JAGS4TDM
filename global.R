@@ -6,9 +6,53 @@ library('gridExtra')
 library('PerformanceAnalytics')
 library('MASS')
 
-## Thetas and omega matrix from the Axitinib Base model
-axi_i_mod_pars <- list(thetas=c(0.530,46.6,17.1,0.469,0.457, 44.7, 1.73),
-                       omegas=c(0.476, 0.140, 0.270, 1.06, 0.38, 0.158, 0.593))
+## Thetas and omega matrix from the Axitinib Final model in fed state using formulation IV
+axi_i_mod_fed <- list(thetas=c(0.523, ## THETA1: ka in fed state formulation IV
+                               45.3,  ## THETA2: Vc [L]
+                               17.0,  ## THETA3: Cl [L/h]
+                               0.465, ## THETA4: F formulation IV in fed state
+                               0.457, ## THETA5: Lag time [h]
+                               45.9,  ## THETA6: Vp [L]
+                               1.74), ## THETA7: Q [L/h]
+                       omegas=c(0.506, ## OMEGA1: Variance ka
+                                0.0949, ## OMEGA2: Variance Vc
+                                0.272, ## OMEGA3: Variance Cl
+                                1.07,  ## OMEGA4: Variance Vp
+                                0.406,  ## OMEGA5: Variance Q
+                                0.141, ## OMEGA6: Covariance Cl~Vc
+                                0.619)) ## OMEGA7: Covariance Q~Vp
+
+## Thetas and omega matrix from the Axitinib Final model in !fasted! state using formulation IV
+axi_i_mod_fasted <- list(thetas=c(0.523*(1+2.07), ## THETA1: ka in fed state formulation IV
+                                  45.3,  ## THETA2: Vc [L]
+                                  17.0,  ## THETA3: Cl [L/h]
+                                  0.465*(1+0.338), ## THETA4: F formulation IV in fed state
+                                  0.457, ## THETA5: Lag time [h]
+                                  45.9,  ## THETA6: Vp [L]
+                                  1.74), ## THETA7: Q [L/h]
+                         omegas=c(0.506, ## OMEGA1: Variance ka
+                                  0.0949, ## OMEGA2: Variance Vc
+                                  0.272, ## OMEGA3: Variance Cl
+                                  1.07,  ## OMEGA4: Variance Vp
+                                  0.406,  ## OMEGA5: Variance Q
+                                  0.141, ## OMEGA6: Covariance Cl~Vc
+                                  0.619)) ## OMEGA7: Covariance Q~Vp
+
+## Thetas and omega matrix from the Axitinib Final model in fed state using formulation XLI
+axi_i_mod_fed_form_XLI <- list(thetas=c(0.523, ## THETA1: ka in fed state formulation IV
+                                        45.3,  ## THETA2: Vc [L]
+                                        17.0,  ## THETA3: Cl [L/h]
+                                        0.465*(1-0.150), ## THETA4: F formulation IV in fed state
+                                        0.457, ## THETA5: Lag time [h]
+                                        45.9,  ## THETA6: Vp [L]
+                                        1.74), ## THETA7: Q [L/h]
+                               omegas=c(0.506, ## OMEGA1: Variance ka
+                                        0.0949, ## OMEGA2: Variance Vc
+                                        0.272, ## OMEGA3: Variance Cl
+                                        1.07,  ## OMEGA4: Variance Vp
+                                        0.406,  ## OMEGA5: Variance Q
+                                        0.141, ## OMEGA6: Covariance Cl~Vc
+                                        0.619)) ## OMEGA7: Covariance Q~Vp
 
 ## Analytical solution of 2cmt model in steady state with lag time
 pk_2cmt_oral_ss <- function(theta, eta, dosing_events, times){
@@ -197,16 +241,36 @@ process_data_set <- function(pk_data = data.frame(time=c(0,4,6,12,30,50),
                                               eta=c(df$eta1[i],df$eta2[i],df$eta3[i], df$eta4[i], df$eta5[i], df$eta6[i]),
                                               dosing_events = data.frame(time=0, amt=dosing_events$amt[1], ii=dosing_events$ii[1]),
                                               times=TIME)
-            } else if (!steady_state & n.comp==3) {
+            } else if (!steady_state & n.comp==3) { ## Axitinib Fed
               mcmc_se[[i]] <- pk_2cmt_oral(theta=thetas, ### ETA 4 is set to zero => no random effect f_oral
                                            eta=c(df$eta1[i],df$eta2[i],df$eta3[i],0, df$eta4[i], df$eta5[i]),
                                            dosing_events = dosing_events,
                                            times=TIME)
-            } else if (steady_state & n.comp==3) {
+            } else if (steady_state & n.comp==3) { ## Axitinib Fed
               mcmc_se[[i]] <- pk_2cmt_oral_ss(theta=thetas, ### ETA 4 is set to zero => no random effect f_oral
                                               eta=c(df$eta1[i],df$eta2[i],df$eta3[i], 0, df$eta4[i], df$eta5[i]),
                                               dosing_events = data.frame(time=0, amt=dosing_events$amt[1], ii=dosing_events$ii[1]),
                                               times=TIME)
+            } else if (steady_state & n.comp==4) { ## Axitinib Fasted
+              mcmc_se[[i]] <- pk_2cmt_oral_ss(theta=thetas, ### ETA 4 is set to zero => no random effect f_oral
+                                              eta=c(df$eta1[i],df$eta2[i],df$eta3[i], 0, df$eta4[i], df$eta5[i]),
+                                              dosing_events = data.frame(time=0, amt=dosing_events$amt[1], ii=dosing_events$ii[1]),
+                                              times=TIME)
+            } else if (steady_state & n.comp==5) { ## Axitinib Fasted formulation XLI
+              mcmc_se[[i]] <- pk_2cmt_oral_ss(theta=thetas, ### ETA 4 is set to zero => no random effect f_oral
+                                              eta=c(df$eta1[i],df$eta2[i],df$eta3[i], 0, df$eta4[i], df$eta5[i]),
+                                              dosing_events = data.frame(time=0, amt=dosing_events$amt[1], ii=dosing_events$ii[1]),
+                                              times=TIME)
+            } else if (!steady_state & n.comp==4) { ## Axitinib Fasted
+              mcmc_se[[i]] <- pk_2cmt_oral(theta=thetas, ### ETA 4 is set to zero => no random effect f_oral
+                                           eta=c(df$eta1[i],df$eta2[i],df$eta3[i],0, df$eta4[i], df$eta5[i]),
+                                           dosing_events = dosing_events,
+                                           times=TIME)
+            } else if (!steady_state & n.comp==5) { ## Axitinib Fasted formulation XLI
+              mcmc_se[[i]] <- pk_2cmt_oral(theta=thetas, ### ETA 4 is set to zero => no random effect f_oral
+                                           eta=c(df$eta1[i],df$eta2[i],df$eta3[i],0, df$eta4[i], df$eta5[i]),
+                                           dosing_events = dosing_events,
+                                           times=TIME)
             }
             
             incProgress(1)
@@ -346,6 +410,9 @@ process_data_set <- function(pk_data = data.frame(time=c(0,4,6,12,30,50),
 
     ### Use JAGS model to sample from posterior distribution
     ### According to the selected model
+    
+    #### ---- For some reason, JAGS runs more stable when SD is submitted to the model and is ----#
+    #### Calculated back to variance in the model file --- ?? 
     if((n.comp==1) & (!steady_state))  {
     
         jags <- jags.model('1cmt_multiple_dose.bug',
@@ -411,7 +478,7 @@ process_data_set <- function(pk_data = data.frame(time=c(0,4,6,12,30,50),
       d <- coda.samples(jags,
                         c('eta1', 'eta2', 'eta3', 'eta4', 'eta5', 'eta6'),
                         n.iter, thin=1)
-    } else if((n.comp==3) & (!steady_state)) {
+    } else if((n.comp>=3 & n.comp <6 ) & (!steady_state)) {
       
       jags <- jags.model('AXI_I_multiple_dose.bug',
                          data = list('c' = tdm_data$conc,
@@ -427,7 +494,7 @@ process_data_set <- function(pk_data = data.frame(time=c(0,4,6,12,30,50),
       d <- coda.samples(jags,
                         c('eta1', 'eta2', 'eta3', 'eta4', 'eta5'),
                         n.iter, thin=1)
-    } else if((n.comp==3) & (steady_state)) {
+    } else if((n.comp>=3 & n.comp <6 ) & (steady_state)) {
       jags <- jags.model('AXI_I_ss.bug',
                          data = list('c' = tdm_data$conc,
                                      'amt' = dosing_events$amt[1], 
