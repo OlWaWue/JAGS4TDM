@@ -28,7 +28,8 @@ shinyServer(function(input, output, session) {
     
     ## AppData used in simulation
     
-    result = NULL,
+    mcmc_result = NULL,
+    mc_result= NULL,
     data_set = data.frame(time=c(0,4,6,12,24,30,36,48),
                           amt=c(5,".",".",5,5,".",5,"."),
                           conc=c(".", 0.04, 0.036, ".",".", 0.030,".", 0.0132),
@@ -57,28 +58,28 @@ shinyServer(function(input, output, session) {
     ## Decide which PK model was choosen and act accordingly
     if(input$choose_PK_mod==2){
       
-      app_data$result = process_data_set(app_data$data_set, n.iter = input$mcmc_n.iter, n.burn = input$mcmc_n.burn,
+      app_data$mcmc_result = process_data_set(app_data$data_set, n.iter = input$mcmc_n.iter, n.burn = input$mcmc_n.burn,
                                          thetas = c(input$ka, input$V, input$Cl, input$F_oral, input$tlag, input$V2, input$Q),
                                          omegas = c(input$omega1, input$omega2, input$omega3, input$omega4, input$omega5, input$omega6),
                                          TIME =seq(input$TIME[1], input$TIME[2], by=0.2), sigma=input$sigma, 
                                          steady_state = input$choose_SS, n.comp=input$choose_PK_mod) 
                              
     } else if(input$choose_PK_mod==1) {
-        app_data$result = process_data_set(app_data$data_set, n.iter = input$mcmc_n.iter, n.burn = input$mcmc_n.burn,
+        app_data$mcmc_result = process_data_set(app_data$data_set, n.iter = input$mcmc_n.iter, n.burn = input$mcmc_n.burn,
                                            thetas = c(input$ka, input$V, input$Cl, input$F_oral, input$tlag, input$V2, input$Q),
                                            omegas = c(input$omega1, input$omega2, input$omega3, input$omega4, input$omega5),
                                            TIME =seq(input$TIME[1], input$TIME[2], by=0.2), sigma=input$sigma, 
                                            steady_state = input$choose_SS, n.comp=input$choose_PK_mod)
     } else if(input$choose_PK_mod==3) {
       ### Dont get Thetas and Omega matrix from UI, use axi_i_mod_fed from global.R
-      app_data$result = process_data_set(app_data$data_set, n.iter = input$mcmc_n.iter, n.burn = input$mcmc_n.burn,
+      app_data$mcmc_result = process_data_set(app_data$data_set, n.iter = input$mcmc_n.iter, n.burn = input$mcmc_n.burn,
                                          thetas = axi_i_mod_fed$thetas,
                                          omegas = axi_i_mod_fed$omegas,
                                          TIME =seq(input$TIME[1], input$TIME[2], by=0.2), sigma=input$sigma, 
                                          steady_state = input$choose_SS, n.comp=input$choose_PK_mod) 
     } else if(input$choose_PK_mod==4) {
       ### Dont get Thetas and Omega matrix from UI, use axi_i_mod_fed from global.R
-      app_data$result = process_data_set(app_data$data_set, n.iter = input$mcmc_n.iter, n.burn = input$mcmc_n.burn,
+      app_data$mcmc_result = process_data_set(app_data$data_set, n.iter = input$mcmc_n.iter, n.burn = input$mcmc_n.burn,
                                          thetas = axi_i_mod_fasted$thetas,
                                          omegas = axi_i_mod_fasted$omegas,
                                          TIME =seq(input$TIME[1], input$TIME[2], by=0.2), sigma=input$sigma, 
@@ -86,7 +87,7 @@ shinyServer(function(input, output, session) {
     }
     else if(input$choose_PK_mod==5) {
       ### Dont get Thetas and Omega matrix from UI, use axi_i_mod_fed from global.R
-      app_data$result = process_data_set(app_data$data_set, n.iter = input$mcmc_n.iter, n.burn = input$mcmc_n.burn,
+      app_data$mcmc_result = process_data_set(app_data$data_set, n.iter = input$mcmc_n.iter, n.burn = input$mcmc_n.burn,
                                          thetas = axi_i_mod_fed_form_XLI$thetas,
                                          omegas = axi_i_mod_fed_form_XLI$omegas,
                                          TIME =seq(input$TIME[1], input$TIME[2], by=0.2), sigma=input$sigma, 
@@ -94,22 +95,23 @@ shinyServer(function(input, output, session) {
     }
     
     
-    mc_res <- perform_mc_simulation(input$n.mc, ## number of simulations
-                                      c(input$omega1, input$omega2, input$omega3, input$omega4, input$omega5, input$omega6), ## omegas
-                                      input$choose_PK_mod, ## PK model
-                                      input$choose_SS, ## Steady state? True or False
-                                      c(input$ka, input$V, input$Cl, input$F_oral, input$tlag, input$V2, input$Q), ## thetas
-                                      app_data, ## App Data for Dosing / TDM Data
-                                      input$TIME[1], input$TIME[2]) ## Time to simulate
+    ## Perform mc simulation to get a prediction interval for the population PK curve
+    app_data$mc_result <- perform_mc_simulation(input$n.mc, ## number of simulations
+                                                c(input$omega1, input$omega2, input$omega3, input$omega4, input$omega5, input$omega6), ## omegas
+                                                input$choose_PK_mod, ## PK model
+                                                input$choose_SS, ## Steady state? True or False
+                                                c(input$ka, input$V, input$Cl, input$F_oral, input$tlag, input$V2, input$Q), ## thetas
+                                                app_data, ## App Data for Dosing / TDM Data
+                                                input$TIME[1], input$TIME[2]) ## Time to simulate
     
-    plot_dat <- mc_res[[1]]
-    dat_mc <- mc_res[[2]]
+    plot_dat <- app_data$mc_result [[1]] ## get Plot data ...
+    dat_mc <- app_data$mc_result [[2]]  ### .. and raw results from the mc simulation to complete the plots
     
     ## Get lowest value (non-zero <- log-scale) and max value in PK plot to adjust y-axis
     pop_y_max <- max(plot_dat$CP_max)
     pop_y_min <- min(plot_dat$CP_min[plot_dat$CP_min >0])
-    ind_y_max <- app_data$result[[7]]
-    ind_y_min <- app_data$result[[8]]
+    ind_y_max <- app_data$mcmc_result[[7]]
+    ind_y_min <- app_data$mcmc_result[[8]]
     
      
     ## get tdm data from the table
@@ -121,13 +123,13 @@ shinyServer(function(input, output, session) {
     ind_y_max <- ifelse(max(tdm_data$conc) > ind_y_max, max(tdm_data$conc), ind_y_max)
     
     ## prepare individual boxplot
-    ind_boxplot <- ggplot(data=data.frame(conc=app_data$result[[6]], time="")) + geom_boxplot(aes(x=time, y=conc)) + theme_bw()  +
+    ind_boxplot <- ggplot(data=data.frame(conc=app_data$mcmc_result[[6]], time="")) + geom_boxplot(aes(x=time, y=conc)) + theme_bw()  +
       theme(axis.text.y = element_blank(), axis.title.y = element_blank(), 
           axis.ticks.y = element_blank())+ 
       ggtitle(paste("C last at ", input$TIME[2], " h"), "Individual") + xlab("") + ylim(c(0,ind_y_max*1.2))
     
     ## prepare individual PK plot
-    ind_plot <- app_data$result[[5]] + theme_bw() + xlab("Time [h]") + ylab("Concentration [mg/L]") +
+    ind_plot <- app_data$mcmc_result[[5]] + theme_bw() + xlab("Time [h]") + ylab("Concentration [mg/L]") +
       ggtitle("MCMC Result including data (posterior)", "80/85/90/95% PI") + 
       geom_line(data=plot_dat, aes(x=TIME, y=CP), colour="blue", linetype=2) + ylim(c(0,ind_y_max*1.2))
 
@@ -186,9 +188,214 @@ shinyServer(function(input, output, session) {
     chain = as.numeric(input$select_chain)
     
     ## Show correlation matrix - the lazy way
-    chart.Correlation(app_data$result[[chain]]$chain_data, histogram=TRUE)
+    chart.Correlation(app_data$mcmc_result[[chain]]$chain_data, histogram=TRUE)
 
     
+  })
+  
+  output$pop_cov_plot <- renderPlot({
+    ## Show correlation matrix - the lazy way
+    chart.Correlation(app_data$mc_result[[3]], histogram=TRUE)
+  
+  })
+  
+  output$par_dist <- renderPlot({
+    dist_plots <- list()
+
+    current_etas <- app_data$mc_result[[3]]
+    
+    mcmc_etas <- app_data$mcmc_result[[9]]
+    
+    if(input$choose_PK_mod==1){
+        pop_pars <- data.frame(
+          pop_ka=input$ka * exp(current_etas[,1]),
+          pop_Vc=input$V * exp(current_etas[,2]),
+          pop_Cl=input$Cl * exp(current_etas[,3]),
+          pop_F_oral=input$F_oral * exp(current_etas[,4]))
+        ind_pars <- data.frame(
+          ind_ka=input$ka * exp(mcmc_etas[,1]),
+          ind_Vc=input$V  * exp(mcmc_etas[,2]),
+          ind_Cl=input$Cl * exp(mcmc_etas[,3]),
+          ind_F_oral=input$F_oral  * exp(mcmc_etas[,4]))
+        
+        
+        dist_plots[[1]] <- ggplot() +theme_bw()+ 
+          geom_density(data=pop_pars, aes(x=pop_ka, y=..density..), colour="blue", size=.5, fill="blue",alpha=0.25, linetype=1) +
+          geom_density(data=ind_pars, aes(x=ind_ka, y=..density..), colour="red", size=.5, fill="red",alpha=0.25, linetype=1) +
+          xlab("Absorption rate constant (ka) [1/h]") + ylab("Frequency")
+        dist_plots[[2]] <- ggplot(  ) +theme_bw()+ 
+          geom_density(data=pop_pars, aes(x=pop_Vc, y=..density..), colour="blue", size=.5, fill="blue",alpha=0.25, linetype=1) +
+          geom_density(data=ind_pars,aes(x=ind_Vc, y=..density..), colour="red", size=.5, fill="red",alpha=0.25, linetype=1)+
+          xlab("Volume of central compartment (Vc) [L]") + ylab("Frequency")
+        dist_plots[[3]] <- ggplot( ) +theme_bw()+ 
+          geom_density(data=pop_pars, aes(x=pop_Cl, y=..density..), colour="blue", size=.5, fill="blue",alpha=0.25, linetype=1)+
+          geom_density(data=ind_pars,aes(x=ind_Cl, y=..density..), colour="red", size=.5, fill="red",alpha=0.25, linetype=1)+
+          xlab("Clearance (Cl) [L/h]") + ylab("Frequency")
+        dist_plots[[4]] <- ggplot(  ) +theme_bw()+ 
+          geom_density(data=pop_pars, aes(x=pop_F_oral, y=..density..), colour="blue", size=.5, fill="blue",alpha=0.25, linetype=1)+
+          geom_density(data=ind_pars,aes(x=ind_F_oral, y=..density..), colour="red", size=.5, fill="red",alpha=0.25, linetype=1)+
+          xlab("Systemicall available fraction") + ylab("Frequency")
+        
+        grid.arrange(dist_plots[[1]],dist_plots[[2]],dist_plots[[3]],dist_plots[[4]], nrow=2, ncol=2)
+      
+    }
+    else if (input$choose_PK_mod == 2){
+      pop_pars <- data.frame(
+        pop_ka=input$ka * exp(current_etas[,1]),
+        pop_Vc=input$V * exp(current_etas[,2]),
+        pop_Cl=input$Cl * exp(current_etas[,3]),
+        pop_F_oral=input$F_oral * exp(current_etas[,4]),
+        pop_Vp=input$V2 * exp(current_etas[,5]),
+        pop_Q=input$Q * exp(current_etas[,6]))
+      ind_pars <- data.frame(
+        ind_ka=input$ka * exp(mcmc_etas[,1]),
+        ind_Vc=input$V  * exp(mcmc_etas[,2]),
+        ind_Cl=input$Cl * exp(mcmc_etas[,3]),
+        ind_F_oral=input$F_oral  * exp(mcmc_etas[,4]),
+        ind_Vp=input$V2 * exp(mcmc_etas[,5]),
+        ind_Q=input$Q* exp(mcmc_etas[,5]))
+      
+      
+      dist_plots[[1]] <- ggplot() +theme_bw()+ 
+        geom_density(data=pop_pars, aes(x=pop_ka, y=..density..), colour="blue", size=.5, fill="blue",alpha=0.25, linetype=1) +
+        geom_density(data=ind_pars, aes(x=ind_ka, y=..density..), colour="red", size=.5, fill="red",alpha=0.25, linetype=1) +
+        xlab("Absorption rate constant (ka) [1/h]") + ylab("Frequency")
+      dist_plots[[2]] <- ggplot(  ) +theme_bw()+ 
+        geom_density(data=pop_pars, aes(x=pop_Vc, y=..density..), colour="blue", size=.5, fill="blue",alpha=0.25, linetype=1) +
+        geom_density(data=ind_pars,aes(x=ind_Vc, y=..density..), colour="red", size=.5, fill="red",alpha=0.25, linetype=1)+
+        xlab("Volume of central compartment (Vc) [L]") + ylab("Frequency")
+      dist_plots[[3]] <- ggplot( ) +theme_bw()+ 
+        geom_density(data=pop_pars, aes(x=pop_Cl, y=..density..), colour="blue", size=.5, fill="blue",alpha=0.25, linetype=1)+
+        geom_density(data=ind_pars,aes(x=ind_Cl, y=..density..), colour="red", size=.5, fill="red",alpha=0.25, linetype=1)+
+        xlab("Clearance (Cl) [L/h]") + ylab("Frequency")
+      dist_plots[[4]] <- ggplot(  ) +theme_bw()+ 
+        geom_density(data=pop_pars, aes(x=pop_Vp, y=..density..), colour="blue", size=.5, fill="blue",alpha=0.25, linetype=1)+
+        geom_density(data=ind_pars,aes(x=ind_Vp, y=..density..), colour="red", size=.5, fill="red",alpha=0.25, linetype=1)+
+        xlab("Volume of peripheral compartment (Vp) [L]") + ylab("Frequency")
+      dist_plots[[5]] <- ggplot(  ) +theme_bw()+ 
+        geom_density(data=pop_pars, aes(x=pop_Q, y=..density..), colour="blue", size=.5, fill="blue",alpha=0.25, linetype=1)+
+        geom_density(data=ind_pars,aes(x=ind_Q, y=..density..), colour="red", size=.5, fill="red",alpha=0.25, linetype=1)+
+        xlab("Intercompartmental Clearance (Q) [L/h]") + ylab("Frequency")
+      dist_plots[[6]] <- ggplot(  ) +theme_bw()+ 
+        geom_density(data=pop_pars, aes(x=pop_F_oral, y=..density..), colour="blue", size=.5, fill="blue",alpha=0.25, linetype=1)+
+        geom_density(data=ind_pars,aes(x=ind_F_oral, y=..density..), colour="red", size=.5, fill="red",alpha=0.25, linetype=1)+
+        xlab("Systemicall available fraction") + ylab("Frequency")
+      
+      grid.arrange(dist_plots[[1]],dist_plots[[2]],dist_plots[[3]],dist_plots[[4]],dist_plots[[5]],dist_plots[[6]], nrow=3, ncol=2)
+    }
+    else if(input$choose_PK_mod==3) {
+    
+        pop_pars <- data.frame(
+                          pop_ka=axi_i_mod_fed$thetas[1] * exp(current_etas[,1]),
+                          pop_Vc=axi_i_mod_fed$thetas[2] * exp(current_etas[,2]),
+                          pop_Cl=axi_i_mod_fed$thetas[3] * exp(current_etas[,3]),
+                          pop_Vp=axi_i_mod_fed$thetas[6] * exp(current_etas[,4]),
+                          pop_Q=axi_i_mod_fed$thetas[7] * exp(current_etas[,5]))
+        ind_pars <- data.frame(
+                          ind_ka=axi_i_mod_fed$thetas[1] * exp(mcmc_etas[,1]),
+                          ind_Vc=axi_i_mod_fed$thetas[2] * exp(mcmc_etas[,2]),
+                          ind_Cl=axi_i_mod_fed$thetas[3] * exp(mcmc_etas[,3]),
+                          ind_Vp=axi_i_mod_fed$thetas[6] * exp(mcmc_etas[,4]),
+                          ind_Q=axi_i_mod_fed$thetas[7] * exp(mcmc_etas[,5]))
+    
+        
+        dist_plots[[1]] <- ggplot() +theme_bw()+ 
+          geom_density(data=pop_pars, aes(x=pop_ka, y=..density..), colour="blue", size=.5, fill="blue",alpha=0.25, linetype=1) +
+          geom_density(data=ind_pars, aes(x=ind_ka, y=..density..), colour="red", size=.5, fill="red",alpha=0.25, linetype=1) +
+          xlab("Absorption rate constant (ka) [1/h]") + ylab("Frequency")
+        dist_plots[[2]] <- ggplot(  ) +theme_bw()+ 
+          geom_density(data=pop_pars, aes(x=pop_Vc, y=..density..), colour="blue", size=.5, fill="blue",alpha=0.25, linetype=1) +
+          geom_density(data=ind_pars,aes(x=ind_Vc, y=..density..), colour="red", size=.5, fill="red",alpha=0.25, linetype=1)+
+          xlab("Volume of central compartment (Vc) [L]") + ylab("Frequency")
+        dist_plots[[3]] <- ggplot( ) +theme_bw()+ 
+          geom_density(data=pop_pars, aes(x=pop_Cl, y=..density..), colour="blue", size=.5, fill="blue",alpha=0.25, linetype=1)+
+          geom_density(data=ind_pars,aes(x=ind_Cl, y=..density..), colour="red", size=.5, fill="red",alpha=0.25, linetype=1)+
+          xlab("Clearance (Cl) [L/h]") + ylab("Frequency")
+        dist_plots[[4]] <- ggplot(  ) +theme_bw()+ 
+          geom_density(data=pop_pars, aes(x=pop_Vp, y=..density..), colour="blue", size=.5, fill="blue",alpha=0.25, linetype=1)+
+          geom_density(data=ind_pars,aes(x=ind_Vp, y=..density..), colour="red", size=.5, fill="red",alpha=0.25, linetype=1)+
+          xlab("Volume of peripheral compartment (Vp) [L]") + ylab("Frequency")
+        dist_plots[[5]] <- ggplot(  ) +theme_bw()+ 
+          geom_density(data=pop_pars, aes(x=pop_Q, y=..density..), colour="blue", size=.5, fill="blue",alpha=0.25, linetype=1)+
+          geom_density(data=ind_pars,aes(x=ind_Q, y=..density..), colour="red", size=.5, fill="red",alpha=0.25, linetype=1)+
+          xlab("Intercompartmental Clearance (Q) [L/h]") + ylab("Frequency")
+        
+        grid.arrange(dist_plots[[1]],dist_plots[[2]],dist_plots[[3]],dist_plots[[4]],dist_plots[[5]], nrow=3, ncol=2)
+    } else if (input$choose_PK_mod==4){
+      pop_pars <- data.frame(
+        pop_ka=axi_i_mod_fasted$thetas[1] * exp(current_etas[,1]),
+        pop_Vc=axi_i_mod_fasted$thetas[2] * exp(current_etas[,2]),
+        pop_Cl=axi_i_mod_fasted$thetas[3] * exp(current_etas[,3]),
+        pop_Vp=axi_i_mod_fasted$thetas[6] * exp(current_etas[,4]),
+        pop_Q=axi_i_mod_fasted$thetas[7] * exp(current_etas[,5]))
+      ind_pars <- data.frame(
+        ind_ka=axi_i_mod_fasted$thetas[1] * exp(mcmc_etas[,1]),
+        ind_Vc=axi_i_mod_fasted$thetas[2] * exp(mcmc_etas[,2]),
+        ind_Cl=axi_i_mod_fasted$thetas[3] * exp(mcmc_etas[,3]),
+        ind_Vp=axi_i_mod_fasted$thetas[6] * exp(mcmc_etas[,4]),
+        ind_Q=axi_i_mod_fasted$thetas[7] * exp(mcmc_etas[,5]))
+      
+      
+      dist_plots[[1]] <- ggplot() +theme_bw()+ 
+        geom_density(data=pop_pars, aes(x=pop_ka, y=..density..), colour="blue", size=.5, fill="blue",alpha=0.25, linetype=1) +
+        geom_density(data=ind_pars, aes(x=ind_ka, y=..density..), colour="red", size=.5, fill="red",alpha=0.25, linetype=1) +
+        xlab("Absorption rate constant (ka) [1/h]") + ylab("Frequency")
+      dist_plots[[2]] <- ggplot(  ) +theme_bw()+ 
+        geom_density(data=pop_pars, aes(x=pop_Vc, y=..density..), colour="blue", size=.5, fill="blue",alpha=0.25, linetype=1) +
+        geom_density(data=ind_pars,aes(x=ind_Vc, y=..density..), colour="red", size=.5, fill="red",alpha=0.25, linetype=1)+
+        xlab("Volume of central compartment (Vc) [L]") + ylab("Frequency")
+      dist_plots[[3]] <- ggplot( ) +theme_bw()+ 
+        geom_density(data=pop_pars, aes(x=pop_Cl, y=..density..), colour="blue", size=.5, fill="blue",alpha=0.25, linetype=1)+
+        geom_density(data=ind_pars,aes(x=ind_Cl, y=..density..), colour="red", size=.5, fill="red",alpha=0.25, linetype=1)+
+        xlab("Clearance (Cl) [L/h]") + ylab("Frequency")
+      dist_plots[[4]] <- ggplot(  ) +theme_bw()+ 
+        geom_density(data=pop_pars, aes(x=pop_Vp, y=..density..), colour="blue", size=.5, fill="blue",alpha=0.25, linetype=1)+
+        geom_density(data=ind_pars,aes(x=ind_Vp, y=..density..), colour="red", size=.5, fill="red",alpha=0.25, linetype=1)+
+        xlab("Volume of peripheral compartment (Vp) [L]") + ylab("Frequency")
+      dist_plots[[5]] <- ggplot(  ) +theme_bw()+ 
+        geom_density(data=pop_pars, aes(x=pop_Q, y=..density..), colour="blue", size=.5, fill="blue",alpha=0.25, linetype=1)+
+        geom_density(data=ind_pars,aes(x=ind_Q, y=..density..), colour="red", size=.5, fill="red",alpha=0.25, linetype=1)+
+        xlab("Intercompartmental Clearance (Q) [L/h]") + ylab("Frequency")
+      
+      grid.arrange(dist_plots[[1]],dist_plots[[2]],dist_plots[[3]],dist_plots[[4]],dist_plots[[5]], nrow=3, ncol=2)
+    } else if (input$choose_PK_mod==5){
+      pop_pars <- data.frame(
+        pop_ka=axi_i_mod_fed_form_XLI$thetas[1] * exp(current_etas[,1]),
+        pop_Vc=axi_i_mod_fed_form_XLI$thetas[2] * exp(current_etas[,2]),
+        pop_Cl=axi_i_mod_fed_form_XLI$thetas[3] * exp(current_etas[,3]),
+        pop_Vp=axi_i_mod_fed_form_XLI$thetas[6] * exp(current_etas[,4]),
+        pop_Q=axi_i_mod_fed_form_XLI$thetas[7] * exp(current_etas[,5]))
+      ind_pars <- data.frame(
+        ind_ka=axi_i_mod_fed_form_XLI$thetas[1] * exp(mcmc_etas[,1]),
+        ind_Vc=axi_i_mod_fed_form_XLI$thetas[2] * exp(mcmc_etas[,2]),
+        ind_Cl=axi_i_mod_fed_form_XLI$thetas[3] * exp(mcmc_etas[,3]),
+        ind_Vp=axi_i_mod_fed_form_XLI$thetas[6] * exp(mcmc_etas[,4]),
+        ind_Q=axi_i_mod_fed_form_XLI$thetas[7] * exp(mcmc_etas[,5]))
+      
+      
+      dist_plots[[1]] <- ggplot() +theme_bw()+ 
+        geom_density(data=pop_pars, aes(x=pop_ka, y=..density..), colour="blue", size=.5, fill="blue",alpha=0.25, linetype=1) +
+        geom_density(data=ind_pars, aes(x=ind_ka, y=..density..), colour="red", size=.5, fill="red",alpha=0.25, linetype=1) +
+        xlab("Absorption rate constant (ka) [1/h]") + ylab("Frequency")
+      dist_plots[[2]] <- ggplot(  ) +theme_bw()+ 
+        geom_density(data=pop_pars, aes(x=pop_Vc, y=..density..), colour="blue", size=.5, fill="blue",alpha=0.25, linetype=1) +
+        geom_density(data=ind_pars,aes(x=ind_Vc, y=..density..), colour="red", size=.5, fill="red",alpha=0.25, linetype=1)+
+        xlab("Volume of central compartment (Vc) [L]") + ylab("Frequency")
+      dist_plots[[3]] <- ggplot( ) +theme_bw()+ 
+        geom_density(data=pop_pars, aes(x=pop_Cl, y=..density..), colour="blue", size=.5, fill="blue",alpha=0.25, linetype=1)+
+        geom_density(data=ind_pars,aes(x=ind_Cl, y=..density..), colour="red", size=.5, fill="red",alpha=0.25, linetype=1)+
+        xlab("Clearance (Cl) [L/h]") + ylab("Frequency")
+      dist_plots[[4]] <- ggplot(  ) +theme_bw()+ 
+        geom_density(data=pop_pars, aes(x=pop_Vp, y=..density..), colour="blue", size=.5, fill="blue",alpha=0.25, linetype=1)+
+        geom_density(data=ind_pars,aes(x=ind_Vp, y=..density..), colour="red", size=.5, fill="red",alpha=0.25, linetype=1)+
+        xlab("Volume of peripheral compartment (Vp) [L]") + ylab("Frequency")
+      dist_plots[[5]] <- ggplot(  ) +theme_bw()+ 
+        geom_density(data=pop_pars, aes(x=pop_Q, y=..density..), colour="blue", size=.5, fill="blue",alpha=0.25, linetype=1)+
+        geom_density(data=ind_pars,aes(x=ind_Q, y=..density..), colour="red", size=.5, fill="red",alpha=0.25, linetype=1)+
+        xlab("Intercompartmental Clearance (Q) [L/h]") + ylab("Frequency")
+      
+      grid.arrange(dist_plots[[1]],dist_plots[[2]],dist_plots[[3]],dist_plots[[4]],dist_plots[[5]], nrow=3, ncol=2)
+    }
   })
   
   output$traceplot <- renderPlot({
@@ -199,23 +406,23 @@ shinyServer(function(input, output, session) {
     
     ## 
     if(input$choose_PK_mod==1) {
-        gridExtra::grid.arrange(app_data$result[[chain]]$p_iter_ETA1, app_data$result[[chain]]$p_dens_ETA1,    
-                                app_data$result[[chain]]$p_iter_ETA2, app_data$result[[chain]]$p_dens_ETA2, 
-                                app_data$result[[chain]]$p_iter_ETA3, app_data$result[[chain]]$p_dens_ETA3, 
-                                app_data$result[[chain]]$p_iter_ETA4, app_data$result[[chain]]$p_dens_ETA4, nrow=4, ncol=2, widths=c(3,1))  
+        gridExtra::grid.arrange(app_data$mcmc_result[[chain]]$p_iter_ETA1, app_data$mcmc_result[[chain]]$p_dens_ETA1,    
+                                app_data$mcmc_result[[chain]]$p_iter_ETA2, app_data$mcmc_result[[chain]]$p_dens_ETA2, 
+                                app_data$mcmc_result[[chain]]$p_iter_ETA3, app_data$mcmc_result[[chain]]$p_dens_ETA3, 
+                                app_data$mcmc_result[[chain]]$p_iter_ETA4, app_data$mcmc_result[[chain]]$p_dens_ETA4, nrow=4, ncol=2, widths=c(3,1))  
     } else if(input$choose_PK_mod==2) {
-        gridExtra::grid.arrange(app_data$result[[chain]]$p_iter_ETA1, app_data$result[[chain]]$p_dens_ETA1,    
-                                app_data$result[[chain]]$p_iter_ETA2, app_data$result[[chain]]$p_dens_ETA2, 
-                                app_data$result[[chain]]$p_iter_ETA3, app_data$result[[chain]]$p_dens_ETA3, 
-                                app_data$result[[chain]]$p_iter_ETA4, app_data$result[[chain]]$p_dens_ETA4,
-                                app_data$result[[chain]]$p_iter_ETA5, app_data$result[[chain]]$p_dens_ETA5,
-                                app_data$result[[chain]]$p_iter_ETA6, app_data$result[[chain]]$p_dens_ETA6, nrow=6, ncol=2, widths=c(3,1)) 
+        gridExtra::grid.arrange(app_data$mcmc_result[[chain]]$p_iter_ETA1, app_data$mcmc_result[[chain]]$p_dens_ETA1,    
+                                app_data$mcmc_result[[chain]]$p_iter_ETA2, app_data$mcmc_result[[chain]]$p_dens_ETA2, 
+                                app_data$mcmc_result[[chain]]$p_iter_ETA3, app_data$mcmc_result[[chain]]$p_dens_ETA3, 
+                                app_data$mcmc_result[[chain]]$p_iter_ETA4, app_data$mcmc_result[[chain]]$p_dens_ETA4,
+                                app_data$mcmc_result[[chain]]$p_iter_ETA5, app_data$mcmc_result[[chain]]$p_dens_ETA5,
+                                app_data$mcmc_result[[chain]]$p_iter_ETA6, app_data$mcmc_result[[chain]]$p_dens_ETA6, nrow=6, ncol=2, widths=c(3,1)) 
     } else if(input$choose_PK_mod>=3 & input$choose_PK_mod <=5) {
-      gridExtra::grid.arrange(app_data$result[[chain]]$p_iter_ETA1, app_data$result[[chain]]$p_dens_ETA1,    
-                              app_data$result[[chain]]$p_iter_ETA2, app_data$result[[chain]]$p_dens_ETA2, 
-                              app_data$result[[chain]]$p_iter_ETA3, app_data$result[[chain]]$p_dens_ETA3, 
-                              app_data$result[[chain]]$p_iter_ETA4, app_data$result[[chain]]$p_dens_ETA4,
-                              app_data$result[[chain]]$p_iter_ETA5, app_data$result[[chain]]$p_dens_ETA5,nrow=5, ncol=2, widths=c(3,1)) 
+      gridExtra::grid.arrange(app_data$mcmc_result[[chain]]$p_iter_ETA1, app_data$mcmc_result[[chain]]$p_dens_ETA1,    
+                              app_data$mcmc_result[[chain]]$p_iter_ETA2, app_data$mcmc_result[[chain]]$p_dens_ETA2, 
+                              app_data$mcmc_result[[chain]]$p_iter_ETA3, app_data$mcmc_result[[chain]]$p_dens_ETA3, 
+                              app_data$mcmc_result[[chain]]$p_iter_ETA4, app_data$mcmc_result[[chain]]$p_dens_ETA4,
+                              app_data$mcmc_result[[chain]]$p_iter_ETA5, app_data$mcmc_result[[chain]]$p_dens_ETA5,nrow=5, ncol=2, widths=c(3,1)) 
     }
     
     

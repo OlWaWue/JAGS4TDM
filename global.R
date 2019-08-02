@@ -523,10 +523,22 @@ process_data_set <- function(pk_data = data.frame(time=c(0,4,6,12,30,50),
     mcmc_plots_3 <- mcmc_diagnosticplots(3, d, nburn=n.burn, omega=omegas, "yellow")
     mcmc_plots_4 <- mcmc_diagnosticplots(4, d, nburn=n.burn, omega=omegas)
     
+    ## Use the fourth chain for the simulation
+    df <- as.data.frame(d[[4]])
+    
+    ## remove burnin iterations
+    df <- df[-(1:n.burn),]
     
     
-    
-      result = list(mcmc_plots_1, mcmc_plots_2, mcmc_plots_3, mcmc_plots_4, pk_profile=pk_profile[[1]], c_at_tlast=pk_profile[[2]], ind_y_max=pk_profile[[3]], ind_y_min=pk_profile[[4]])
+      result = list(mcmc_plots_1, 
+                    mcmc_plots_2, 
+                    mcmc_plots_3, 
+                    mcmc_plots_4, 
+                    pk_profile=pk_profile[[1]], 
+                    c_at_tlast=pk_profile[[2]], 
+                    ind_y_max=pk_profile[[3]], 
+                    ind_y_min=pk_profile[[4]], 
+                    mcmc_etas = df)
       
       return(result)
 }
@@ -540,12 +552,17 @@ perform_mc_simulation <- function(n.mc, omegas, pk_mod, is_ss, thetas, app_data,
     mc_eta3<- (rnorm(n = n.mc, mean=0, sd=sqrt(omegas[3])))
     mc_eta1<- (rnorm(n = n.mc, mean=0, sd=sqrt(omegas[1])))
     mc_eta4<- (rnorm(n = n.mc, mean=0, sd=sqrt(omegas[4])))
+    
+    all_etas <- data.frame(ETA1=mc_eta1, ETA2=mc_eta2, ETA3=mc_eta3, ETA4=mc_eta4)
   }
   if(pk_mod==2){
     ### generic 2 compartment models
     ### need two additional etas
     mc_eta5<- (rnorm(n = n.mc, mean=0, sd=sqrt(omegas[5])))
     mc_eta6<- (rnorm(n = n.mc, mean=0, sd=sqrt(omegas[6])))
+    
+    all_etas <- data.frame(ETA1=mc_eta1, ETA2=mc_eta2, ETA3=mc_eta3, ETA4=mc_eta4, ETA5=mc_eta5, ETA6=mc_eta6)
+    
   } else if (pk_mod==3){
     
     ### Generate n.mc samples for every random effect
@@ -567,8 +584,11 @@ perform_mc_simulation <- function(n.mc, omegas, pk_mod, is_ss, thetas, app_data,
     mc_eta3 <- etas1[,1]
     
     mc_eta1<- (rnorm(n = n.mc, mean=0, sd=sqrt(axi_i_mod_fed$omegas[3])))
-    mc_eta4<- etas1[,2]
-    mc_eta5<- etas1[,1]
+    mc_eta4<- etas2[,2]
+    mc_eta5<- etas2[,1]
+    
+    all_etas <- data.frame(ETA1=mc_eta1, ETA2=mc_eta2, ETA3=mc_eta3, ETA4=mc_eta4, ETA5=mc_eta5)
+    
   } else if (pk_mod==4){
     
     ### Generate n.mc samples for every random effect
@@ -590,8 +610,11 @@ perform_mc_simulation <- function(n.mc, omegas, pk_mod, is_ss, thetas, app_data,
     mc_eta3 <- etas1[,1]
     
     mc_eta1<- (rnorm(n = n.mc, mean=0, sd=sqrt(axi_i_mod_fed$omegas[3])))
-    mc_eta4<- etas1[,2]
-    mc_eta5<- etas1[,1]
+    mc_eta4<- etas2[,2]
+    mc_eta5<- etas2[,1]
+    
+    all_etas <- data.frame(ETA1=mc_eta1, ETA2=mc_eta2, ETA3=mc_eta3, ETA4=mc_eta4, ETA5=mc_eta5)
+    
   } else if (pk_mod==5){
     
     ### Generate n.mc samples for every random effect
@@ -613,8 +636,10 @@ perform_mc_simulation <- function(n.mc, omegas, pk_mod, is_ss, thetas, app_data,
     mc_eta3 <- etas1[,1]
     
     mc_eta1<- (rnorm(n = n.mc, mean=0, sd=sqrt(axi_i_mod_fed$omegas[3])))
-    mc_eta4<- etas1[,2]
-    mc_eta5<- etas1[,1]
+    mc_eta4<- etas2[,2]
+    mc_eta5<- etas2[,1]
+    
+    all_etas <- data.frame(ETA1=mc_eta1, ETA2=mc_eta2, ETA3=mc_eta3, ETA4=mc_eta4, ETA5=mc_eta5)
   }
   
   dat_mc <- NULL
@@ -721,5 +746,5 @@ perform_mc_simulation <- function(n.mc, omegas, pk_mod, is_ss, thetas, app_data,
   
   ## Data for population PK Plot
   plot_dat <- data.frame(TIME=seq(t_from, t_to, by=0.2),CP_min=s[1,],CP=s[2,],CP_max=s[3,], DELTA=(s[3,]-s[1,]))
-  return(list(plot_dat, dat_mc))
+  return(list(plot_dat, dat_mc, all_etas))
 }

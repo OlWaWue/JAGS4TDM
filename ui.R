@@ -82,7 +82,7 @@ shinyUI(navbarPage("JAGS4TDM - by Oliver Scherf-Clavel (c) 2019 - JMU Wuerzburg"
          )
       )
   ),
-  tabPanel("Diagnostic plots",
+  tabPanel("MCMC plots",
            selectInput("select_chain", "MCMC Chain:", choices = c(1,2,3,4)),br(),
            wellPanel("Trace plot of MCMC",br(),
               
@@ -91,7 +91,18 @@ shinyUI(navbarPage("JAGS4TDM - by Oliver Scherf-Clavel (c) 2019 - JMU Wuerzburg"
            wellPanel("Correlation between random effects",br(),
                      plotOutput("cov_plot", height = 600)
            )### TODO: More diagnostic plots
-           ),
+  ),
+  tabPanel("MC plots",
+ 
+           wellPanel("Correlation between random effects",br(),
+                     plotOutput("pop_cov_plot", height = 600)
+           )### TODO: More diagnostic plots
+  ),
+  tabPanel("Parameter distributions",
+           
+          plotOutput("par_dist", height = 600)
+
+  ),
   tabPanel("Model File",
            verbatimTextOutput("modelfile"))
         )
