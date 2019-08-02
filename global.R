@@ -531,3 +531,195 @@ process_data_set <- function(pk_data = data.frame(time=c(0,4,6,12,30,50),
       return(result)
 }
 
+
+perform_mc_simulation <- function(n.mc, omegas, pk_mod, is_ss, thetas, app_data, t_from, t_to) {
+  
+  ## Todo: Outsource the mc simulation 
+  if(pk_mod <=2){
+    mc_eta2 <- (rnorm(n = n.mc, mean=0, sd=sqrt(omegas[2])))
+    mc_eta3<- (rnorm(n = n.mc, mean=0, sd=sqrt(omegas[3])))
+    mc_eta1<- (rnorm(n = n.mc, mean=0, sd=sqrt(omegas[1])))
+    mc_eta4<- (rnorm(n = n.mc, mean=0, sd=sqrt(omegas[4])))
+  }
+  if(pk_mod==2){
+    ### generic 2 compartment models
+    ### need two additional etas
+    mc_eta5<- (rnorm(n = n.mc, mean=0, sd=sqrt(omegas[5])))
+    mc_eta6<- (rnorm(n = n.mc, mean=0, sd=sqrt(omegas[6])))
+  } else if (pk_mod==3){
+    
+    ### Generate n.mc samples for every random effect
+    ### Correlation between V and Cl and Q and V2 is simulated by 
+    ### sampling from multivariate normal distributions
+    cov_mat_1 <- matrix(c(axi_i_mod_fed$omegas[3], axi_i_mod_fed$omegas[6],
+                          axi_i_mod_fed$omegas[6], axi_i_mod_fed$omegas[2]), nrow=2, ncol=2)
+    
+    cov_mat_2 <- matrix(c(axi_i_mod_fed$omegas[5], axi_i_mod_fed$omegas[7],
+                          axi_i_mod_fed$omegas[7], axi_i_mod_fed$omegas[4]), nrow=2, ncol=2)
+    
+    means <- c(0,0)
+    
+    etas1 <- mvrnorm(n=n.mc, means, cov_mat_1)
+    
+    etas2 <- mvrnorm(n=n.mc, means, cov_mat_2)
+    
+    mc_eta2 <- etas1[,2]
+    mc_eta3 <- etas1[,1]
+    
+    mc_eta1<- (rnorm(n = n.mc, mean=0, sd=sqrt(axi_i_mod_fed$omegas[3])))
+    mc_eta4<- etas1[,2]
+    mc_eta5<- etas1[,1]
+  } else if (pk_mod==4){
+    
+    ### Generate n.mc samples for every random effect
+    ### Correlation between V and Cl and Q and V2 is simulated by 
+    ### sampling from multivariate normal distributions
+    cov_mat_1 <- matrix(c(axi_i_mod_fasted$omegas[3], axi_i_mod_fasted$omegas[6],
+                          axi_i_mod_fasted$omegas[6], axi_i_mod_fasted$omegas[2]), nrow=2, ncol=2)
+    
+    cov_mat_2 <- matrix(c(axi_i_mod_fasted$omegas[5], axi_i_mod_fasted$omegas[7],
+                          axi_i_mod_fasted$omegas[7], axi_i_mod_fasted$omegas[4]), nrow=2, ncol=2)
+    
+    means <- c(0,0)
+    
+    etas1 <- mvrnorm(n=n.mc, means, cov_mat_1)
+    
+    etas2 <- mvrnorm(n=n.mc, means, cov_mat_2)
+    
+    mc_eta2 <- etas1[,2]
+    mc_eta3 <- etas1[,1]
+    
+    mc_eta1<- (rnorm(n = n.mc, mean=0, sd=sqrt(axi_i_mod_fed$omegas[3])))
+    mc_eta4<- etas1[,2]
+    mc_eta5<- etas1[,1]
+  } else if (pk_mod==5){
+    
+    ### Generate n.mc samples for every random effect
+    ### Correlation between V and Cl and Q and V2 is simulated by 
+    ### sampling from multivariate normal distributions
+    cov_mat_1 <- matrix(c(axi_i_mod_fed_form_XLI$omegas[3], axi_i_mod_fed_form_XLI$omegas[6],
+                          axi_i_mod_fed_form_XLI$omegas[6], axi_i_mod_fed_form_XLI$omegas[2]), nrow=2, ncol=2)
+    
+    cov_mat_2 <- matrix(c(axi_i_mod_fed_form_XLI$omegas[5], axi_i_mod_fed_form_XLI$omegas[7],
+                          axi_i_mod_fed_form_XLI$omegas[7], axi_i_mod_fed_form_XLI$omegas[4]), nrow=2, ncol=2)
+    
+    means <- c(0,0)
+    
+    etas1 <- mvrnorm(n=n.mc, means, cov_mat_1)
+    
+    etas2 <- mvrnorm(n=n.mc, means, cov_mat_2)
+    
+    mc_eta2 <- etas1[,2]
+    mc_eta3 <- etas1[,1]
+    
+    mc_eta1<- (rnorm(n = n.mc, mean=0, sd=sqrt(axi_i_mod_fed$omegas[3])))
+    mc_eta4<- etas1[,2]
+    mc_eta5<- etas1[,1]
+  }
+  
+  dat_mc <- NULL
+  
+  
+  ## Do with progress
+  withProgress(message = "Performing Monte Carlo simulation", max = n.mc, {
+    for(i in 1:n.mc){
+      ### Simulate population PK profiles for every monte carlo sample according to the PK model currently
+      ### Selected
+      if(pk_mod==1 & !is_ss) {  
+        CP_mc <-  pk_1cmt_oral(theta = thetas, 
+                               eta = c(mc_eta1[i], mc_eta2[i],mc_eta3[i],mc_eta4[i]), 
+                               dosing_events = data.frame(time=as.numeric(as.character(app_data$data_set[app_data$data_set$evid==1,]$time)),
+                                                          amt=as.numeric(as.character(app_data$data_set[app_data$data_set$evid==1,]$amt))), 
+                               times=seq(t_from, t_to, by=0.2))
+      } else if (pk_mod==2 & !is_ss) {
+        CP_mc <-  pk_2cmt_oral(theta = thetas, 
+                               eta = c(mc_eta1[i], mc_eta2[i],mc_eta3[i],mc_eta4[i],mc_eta5[i],mc_eta6[i]), 
+                               dosing_events = data.frame(time=as.numeric(as.character(app_data$data_set[app_data$data_set$evid==1,]$time)),
+                                                          amt=as.numeric(as.character(app_data$data_set[app_data$data_set$evid==1,]$amt))), 
+                               times=seq(t_from, t_to, by=0.2))
+        
+      } else if (pk_mod==1 & is_ss) {
+        CP_mc <-  pk_1cmt_oral_ss(theta = thetas, 
+                                  eta = c(mc_eta1[i], mc_eta2[i],mc_eta3[i],mc_eta4[i]), 
+                                  dosing_events = data.frame(time=0,
+                                                             amt=as.numeric(as.character(app_data$data_set[app_data$data_set$evid==1,]$amt[1])),
+                                                             ii=as.numeric(as.character(app_data$data_set[app_data$data_set$evid==1,]$ii[1])), evid=1), 
+                                  times=seq(t_from, t_to, by=0.2))
+      } else if (pk_mod==2 & is_ss) {
+        CP_mc <-  pk_1cmt_oral_ss(theta = thetas, 
+                                  eta = c(mc_eta1[i], mc_eta2[i],mc_eta3[i],mc_eta4[i],mc_eta5[i],mc_eta6[i]), 
+                                  dosing_events = data.frame(time=0,
+                                                             amt=as.numeric(as.character(app_data$data_set[app_data$data_set$evid==1,]$amt[1])),
+                                                             ii=as.numeric(as.character(app_data$data_set[app_data$data_set$evid==1,]$ii[1])), evid=1), 
+                                  times=seq(t_from, t_to, by=0.2))
+      } else if (pk_mod==3 & !is_ss) {
+        ## structural model of axitinib base model is generic oral 2 compartments
+        CP_mc <-  pk_2cmt_oral(theta = axi_i_mod_fed$thetas, 
+                               eta = c(mc_eta1[i], mc_eta2[i],mc_eta3[i],0,mc_eta4[i],mc_eta5[i]), 
+                               dosing_events = data.frame(time=as.numeric(as.character(app_data$data_set[app_data$data_set$evid==1,]$time)),
+                                                          amt=as.numeric(as.character(app_data$data_set[app_data$data_set$evid==1,]$amt))), 
+                               times=seq(t_from, t_to, by=0.2))
+        
+      } else if (pk_mod==3 & is_ss) {
+        ## structural model of axitinib base model is generic oral 2 compartments
+        CP_mc <-  pk_2cmt_oral_ss(theta = axi_i_mod_fed$thetas, 
+                                  eta = c(mc_eta1[i], mc_eta2[i],mc_eta3[i],0, mc_eta4[i],mc_eta5[i]), 
+                                  dosing_events = data.frame(time=0,
+                                                             amt=as.numeric(as.character(app_data$data_set[app_data$data_set$evid==1,]$amt[1])),
+                                                             ii=as.numeric(as.character(app_data$data_set[app_data$data_set$evid==1,]$ii[1])), evid=1), 
+                                  times=seq(t_from, t_to, by=0.2))
+        
+      } else if (pk_mod==4 & !is_ss) {
+        ## structural model of axitinib base model is generic oral 2 compartments
+        CP_mc <-  pk_2cmt_oral(theta = axi_i_mod_fasted$thetas, 
+                               eta = c(mc_eta1[i], mc_eta2[i],mc_eta3[i],0,mc_eta4[i],mc_eta5[i]), 
+                               dosing_events = data.frame(time=as.numeric(as.character(app_data$data_set[app_data$data_set$evid==1,]$time)),
+                                                          amt=as.numeric(as.character(app_data$data_set[app_data$data_set$evid==1,]$amt))), 
+                               times=seq(t_from, t_to, by=0.2))
+        
+      } else if (pk_mod==4 & is_ss) {
+        ## structural model of axitinib base model is generic oral 2 compartments
+        CP_mc <-  pk_2cmt_oral_ss(theta = axi_i_mod_fasted$thetas, 
+                                  eta = c(mc_eta1[i], mc_eta2[i],mc_eta3[i],0, mc_eta4[i],mc_eta5[i]), 
+                                  dosing_events = data.frame(time=0,
+                                                             amt=as.numeric(as.character(app_data$data_set[app_data$data_set$evid==1,]$amt[1])),
+                                                             ii=as.numeric(as.character(app_data$data_set[app_data$data_set$evid==1,]$ii[1])), evid=1), 
+                                  times=seq(t_from, t_to, by=0.2))
+        
+      } else if (pk_mod==5 & !is_ss) {
+        ## structural model of axitinib base model is generic oral 2 compartments
+        CP_mc <-  pk_2cmt_oral(theta = axi_i_mod_fed_form_XLI$thetas, 
+                               eta = c(mc_eta1[i], mc_eta2[i],mc_eta3[i],0,mc_eta4[i],mc_eta5[i]), 
+                               dosing_events = data.frame(time=as.numeric(as.character(app_data$data_set[app_data$data_set$evid==1,]$time)),
+                                                          amt=as.numeric(as.character(app_data$data_set[app_data$data_set$evid==1,]$amt))), 
+                               times=seq(t_from, t_to, by=0.2))
+        
+      } else if (pk_mod==5 & is_ss) {
+        ## structural model of axitinib base model is generic oral 2 compartments
+        CP_mc <-  pk_2cmt_oral_ss(theta = axi_i_mod_fed_form_XLI$thetas, 
+                                  eta = c(mc_eta1[i], mc_eta2[i],mc_eta3[i],0, mc_eta4[i],mc_eta5[i]), 
+                                  dosing_events = data.frame(time=0,
+                                                             amt=as.numeric(as.character(app_data$data_set[app_data$data_set$evid==1,]$amt[1])),
+                                                             ii=as.numeric(as.character(app_data$data_set[app_data$data_set$evid==1,]$ii[1])), evid=1), 
+                                  times=seq(t_from, t_to, by=0.2))
+        
+      } 
+      
+      
+      
+      
+      dat_mc <- cbind(dat_mc, CP_mc)
+      incProgress(1)
+    }
+  })
+  
+  ## transpose data -> rows into columns
+  dat_mc <- t(dat_mc)
+  
+  ## Get quantile from monte carlo result
+  s <- apply(dat_mc,2,function(x) quantile(x,probs=c(0.05,0.5,0.95)))
+  
+  ## Data for population PK Plot
+  plot_dat <- data.frame(TIME=seq(t_from, t_to, by=0.2),CP_min=s[1,],CP=s[2,],CP_max=s[3,], DELTA=(s[3,]-s[1,]))
+  return(list(plot_dat, dat_mc))
+}
